@@ -78,10 +78,26 @@ row identifiers, and records missingness, placeholders and duplicate keys. It
 does not impute, deduplicate, relabel or remove rows. See
 [docs/canonical_schema.md](docs/canonical_schema.md).
 
+## Clean auditorium data under the Phase 4 policy
+
+First prepare the Phase 2 table, then run:
+
+```bash
+clean_auditorium_ahu \
+  --input-file data/processed/auditorium/auditorium_prepared.csv \
+  --output-dir data/processed/auditorium/phase4 \
+  --config configs/auditorium_phase4.yaml
+```
+
+This writes the cleaned table, physical-signal and operational-context feature
+tables, and a second-audit manifest/summary. It does not fit an imputer on the
+full dataset; imputation is training-fold-only.
+
 ## Repository status
 
 Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
-and the Phase 3 canonical ingestion adapter are complete. The next gate is
+the Phase 3 canonical ingestion adapter and the Phase 4 auditorium cleaning
+policy are complete. The next gate is
 cleaning/imputation policy for all buildings; no modelling should begin until
 those choices are frozen. See
 [docs/project_plan.md](docs/project_plan.md) for the staged implementation plan.

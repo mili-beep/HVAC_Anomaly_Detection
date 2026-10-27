@@ -72,3 +72,13 @@ deduplicate, relabel or remove rows. Hospital duplicate keys and literal
 placeholders are retained with explicit quality flags for the Phase 4 policy.
 The canonical adapter uses building-specific source mappings, so later
 cleaning and modelling code does not need separate parsing implementations.
+
+## 2026-10-27 — Phase 4 auditorium cleaning
+
+Auditorium heating and cooling missingness is treated as structural operating
+mode availability. Inactive subsystem fields remain missing. Only a bounded,
+active-subsystem gap can be imputed, and its median must be fitted on the
+training fold. The physical-signal variant excludes quality indicators; the
+operational-context variant includes pre-declared mode and availability
+indicators. The auditorium snapshot contains no eligible active gaps, so the
+second audit records zero imputed rows and zero imputed cells.

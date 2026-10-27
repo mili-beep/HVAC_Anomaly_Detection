@@ -1,0 +1,71 @@
+schema_version: 1
+building: auditorium
+
+sensor_feature_columns:
+  - Set point temperature
+  - Return temperature
+  - Supply air temperature
+  - Supply fan
+  - Valve position
+  - Heating supply temperature
+  - Total heating pump
+  - Heating pump 1
+  - Heating pump 2
+  - Heating pump 3
+  - Cooling supply temperature 1
+  - Cooling supply temperature 2
+  - Total cooling pump
+  - Cooling pump 1
+  - Cooling pump 2
+
+# These groups describe subsystem availability, not fault labels.
+sensor_groups:
+  common:
+    - Set point temperature
+    - Return temperature
+    - Supply air temperature
+    - Supply fan
+    - Valve position
+  heating:
+    - Heating supply temperature
+    - Total heating pump
+    - Heating pump 1
+    - Heating pump 2
+    - Heating pump 3
+  cooling:
+    - Cooling supply temperature 1
+    - Cooling supply temperature 2
+    - Total cooling pump
+    - Cooling pump 1
+    - Cooling pump 2
+
+short_gap_policy:
+  maximum_rows: 2
+  maximum_hours: 2
+  require_observed_value_before_and_after: true
+  require_same_ahu: true
+  require_active_subsystem: true
+  imputation_method: training_fold_median
+
+physical_signal_variant:
+  predictor_columns: sensor_feature_columns
+  include_missingness_indicators: false
+  include_operating_mode: false
+  include_sensor_availability: false
+
+operational_context_variant:
+  predictor_columns:
+    - sensor_feature_columns
+    - operating_mode_indicators
+    - sensor_availability_indicators
+  include_missingness_indicators: true
+  include_operating_mode: true
+  include_sensor_availability: true
+
+quality_policy:
+  placeholders: convert_to_missing_and_flag
+  invalid_numeric_values: convert_to_missing_and_flag
+  inactive_heating_cooling_values: retain_as_missing
+  long_active_gaps: retain_as_missing_and_flag
+  duplicate_ahu_timestamp: fail
+  excluded_rows: none
