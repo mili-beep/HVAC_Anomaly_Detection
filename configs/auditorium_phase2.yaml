@@ -1,0 +1,30 @@
+building: auditorium
+source_file: auditorium_scientific_data.csv
+label_column: labeling
+normal_label: Normal condition
+binary_fault_label: fault
+binary_normal_label: normal
+
+# These fields are retained as quality metadata but are not headline model features.
+excluded_from_features:
+  - ahu
+  - source_row_id
+  - timestamp
+  - label_raw
+  - target_binary
+  - hours_since_previous_observation
+  - is_time_gap
+
+imputation:
+  strategy: median
+  fit_scope: training_fold_only
+  missingness_indicators_headline: false
+  missingness_indicators_sensitivity: true
+
+quality_policy:
+  duplicate_ahu_timestamp: fail
+  invalid_timestamp: fail
+  preserve_missing_values: true
+  fill_missing_with_zero: false
+  forward_fill_across_gaps: false
+  timezone: source_local_naive

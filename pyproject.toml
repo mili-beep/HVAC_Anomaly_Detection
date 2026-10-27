@@ -26,6 +26,7 @@ dev = [
 
 [project.scripts]
 audit_multibuilding_ahu = "ahu_fdd.audit:main"
+prepare_auditorium_ahu = "ahu_fdd.auditorium:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ahu_fdd"]

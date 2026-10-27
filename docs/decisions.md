@@ -20,6 +20,23 @@ mode-dependent missingness, class imbalance, and possible AHU-specific label
 shortcuts—must be measured and assigned an explicit policy before headline
 models are trained.
 
+## 2026-10-27 — Phase 2 auditorium policy implemented
+
+The auditorium policy is frozen in
+`configs/auditorium_phase2.yaml` and documented in
+`docs/auditorium_phase2_policy.md`. The source label mapping is explicitly:
+
+```text
+Normal condition -> normal
+Every other label -> fault
+```
+
+The preparation command sorts rows by AHU and timestamp, preserves the raw
+label and source row number, retains missing values as `NaN`, records temporal
+gaps and per-feature missingness flags, and fails on invalid timestamps or
+duplicate AHU/timestamp keys. No imputation or modelling is performed in this
+phase.
+
 ## 2026-10-27 — Phase 1 audit completed
 
 The reproducible audit command is:

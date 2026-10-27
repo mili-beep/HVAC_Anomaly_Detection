@@ -50,6 +50,18 @@ audit_multibuilding_ahu \
 The command writes `audit_manifest.json`, `audit_summary.md`,
 `audit_columns.csv`, `audit_missingness.csv`, and `audit_label_counts.csv`.
 
+## Prepare auditorium data under the Phase 2 policy
+
+```bash
+prepare_auditorium_ahu \
+  --data-root /Users/mili/Downloads/27147678 \
+  --output-dir data/processed/auditorium \
+  --policy configs/auditorium_phase2.yaml
+```
+
+This creates a sorted, traceable derived table and a preparation manifest. It
+does not impute values or train a model.
+
 ## Repository status
 
 Phase 0 and the Phase 1 raw-data audit are complete. The next gate is the
