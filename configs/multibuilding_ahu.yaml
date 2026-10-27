@@ -1,0 +1,106 @@
+schema_version: 1
+
+# The union schema is explicit. Missing source measurements remain missing;
+# they are not fabricated during ingestion.
+canonical_sensor_columns:
+  - setpoint_temperature
+  - return_temperature
+  - supply_air_temperature
+  - supply_fan
+  - valve_position
+  - heating_exchanger
+  - heating_supply_temperature_1
+  - heating_supply_temperature_2
+  - heating_pump_total
+  - heating_pump_1
+  - heating_pump_2
+  - heating_pump_3
+  - cooling_supply_temperature_1
+  - cooling_supply_temperature_2
+  - cooling_pump_total
+  - cooling_pump_1
+  - cooling_pump_2
+  - cooling_pump_3
+  - cooling_pump_4
+
+buildings:
+  auditorium:
+    source_file: auditorium_scientific_data.csv
+    expected_row_count: 113375
+    timestamp:
+      columns: [Time]
+      format: null
+    sensor_columns:
+      setpoint_temperature: Set point temperature
+      return_temperature: Return temperature
+      supply_air_temperature: Supply air temperature
+      supply_fan: Supply fan
+      valve_position: Valve position
+      heating_exchanger: null
+      heating_supply_temperature_1: Heating supply temperature
+      heating_supply_temperature_2: null
+      heating_pump_total: Total heating pump
+      heating_pump_1: Heating pump 1
+      heating_pump_2: Heating pump 2
+      heating_pump_3: Heating pump 3
+      cooling_supply_temperature_1: Cooling supply temperature 1
+      cooling_supply_temperature_2: Cooling supply temperature 2
+      cooling_pump_total: Total cooling pump
+      cooling_pump_1: Cooling pump 1
+      cooling_pump_2: Cooling pump 2
+      cooling_pump_3: null
+      cooling_pump_4: null
+
+  hospital:
+    source_file: hosptial_scientific_data.csv
+    expected_row_count: 66048
+    timestamp:
+      columns: [DATE, Time]
+      format: "%d/%m/%Y %H:%M"
+    sensor_columns:
+      setpoint_temperature: Set point temperature
+      return_temperature: Return temperature
+      supply_air_temperature: Supply air temperature
+      supply_fan: Supply fan
+      valve_position: Valve position
+      heating_exchanger: Heat Exchanger
+      heating_supply_temperature_1: Heating supply temperature
+      heating_supply_temperature_2: null
+      heating_pump_total: null
+      heating_pump_1: null
+      heating_pump_2: null
+      heating_pump_3: null
+      cooling_supply_temperature_1: Cooling supply temperature
+      cooling_supply_temperature_2: null
+      cooling_pump_total: cooling pump
+      cooling_pump_1: null
+      cooling_pump_2: null
+      cooling_pump_3: null
+      cooling_pump_4: null
+
+  office:
+    source_file: office_scientific_data.csv
+    expected_row_count: 175532
+    timestamp:
+      columns: [Time]
+      format: null
+    sensor_columns:
+      setpoint_temperature: Set point temperature
+      return_temperature: Return temperature
+      supply_air_temperature: Supply air temperature
+      supply_fan: Supply fan
+      valve_position: Valve position
+      heating_exchanger: null
+      heating_supply_temperature_1: Heating supply temperature1
+      heating_supply_temperature_2: Heating supply temperature2
+      heating_pump_total: Total heating pump
+      heating_pump_1: Heating pump 1
+      heating_pump_2: Heating pump 2
+      heating_pump_3: Heating pump 3
+      cooling_supply_temperature_1: Cooling supply temperature 1
+      cooling_supply_temperature_2: Cooling supply temperature 2
+      cooling_pump_total: Total cooling pump
+      cooling_pump_1: cooling pump 1
+      cooling_pump_2: cooling pump 2
+      cooling_pump_3: cooling pump 3
+      cooling_pump_4: cooling pump 4

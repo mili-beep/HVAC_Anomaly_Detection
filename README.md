@@ -63,9 +63,25 @@ This creates a sorted, traceable derived table and a preparation manifest. It
 does not impute values or train a model. The manifest records explicit sensor,
 quality, and metadata column groups for later feature selection.
 
+## Build the Phase 3 canonical table
+
+```bash
+ingest_multibuilding_ahu \
+  --data-root /Users/mili/Downloads/27147678 \
+  --output-dir data/interim/canonical \
+  --config configs/multibuilding_ahu.yaml
+```
+
+This applies the same explicit source-to-canonical mapping to auditorium,
+hospital and office data. It preserves raw sensor values, labels and source
+row identifiers, and records missingness, placeholders and duplicate keys. It
+does not impute, deduplicate, relabel or remove rows. See
+[docs/canonical_schema.md](docs/canonical_schema.md).
+
 ## Repository status
 
-Phase 0, the Phase 1 raw-data audit, and the Phase 2 auditorium preparation
-policy are complete. The next gate is feature engineering and split design;
-no modelling should begin until those choices are frozen. See
+Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
+and the Phase 3 canonical ingestion adapter are complete. The next gate is
+cleaning/imputation policy for all buildings; no modelling should begin until
+those choices are frozen. See
 [docs/project_plan.md](docs/project_plan.md) for the staged implementation plan.

@@ -61,3 +61,14 @@ hospital files are not fully ordered in their source row order. Missingness,
 class support, calendar coverage, label associations, run lengths, and
 numeric screening counts are recorded in the manifest. These findings remain
 observations only; cleaning and inclusion decisions are deferred to Phase 2.
+
+## 2026-10-27 — Phase 3 canonical ingestion
+
+The three source schemas are mapped through
+`configs/multibuilding_ahu.yaml` into the stable schema documented in
+`docs/canonical_schema.md`. Ingestion preserves raw sensor values, source row
+identifiers, labels and source text; it does not impute, interpolate,
+deduplicate, relabel or remove rows. Hospital duplicate keys and literal
+placeholders are retained with explicit quality flags for the Phase 4 policy.
+The canonical adapter uses building-specific source mappings, so later
+cleaning and modelling code does not need separate parsing implementations.
