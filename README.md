@@ -93,11 +93,24 @@ This writes the cleaned table, physical-signal and operational-context feature
 tables, and a second-audit manifest/summary. It does not fit an imputer on the
 full dataset; imputation is training-fold-only.
 
+## Engineer auditorium features under the Phase 5 policy
+
+```bash
+engineer_auditorium_features \
+  --input-file data/processed/auditorium/phase4/auditorium_cleaned.csv \
+  --output-dir data/processed/auditorium/phase5 \
+  --config configs/auditorium_phase5.yaml
+```
+
+This writes the feature table, physical and operational variant tables, a
+feature-lineage table, and a shortcut-audit table. See
+[docs/auditorium_phase5_policy.md](docs/auditorium_phase5_policy.md).
+
 ## Repository status
 
 Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
-the Phase 3 canonical ingestion adapter and the Phase 4 auditorium cleaning
-policy are complete. The next gate is
-cleaning/imputation policy for all buildings; no modelling should begin until
-those choices are frozen. See
+the Phase 3 canonical ingestion adapter, the Phase 4 auditorium cleaning
+policy, and the Phase 5 auditorium feature policy are complete. The next gate
+is split/evaluation design; no modelling should begin until those choices are
+frozen. See
 [docs/project_plan.md](docs/project_plan.md) for the staged implementation plan.

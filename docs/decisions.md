@@ -82,3 +82,12 @@ training fold. The physical-signal variant excludes quality indicators; the
 operational-context variant includes pre-declared mode and availability
 indicators. The auditorium snapshot contains no eligible active gaps, so the
 second audit records zero imputed rows and zero imputed cells.
+
+## 2026-10-27 — Phase 5 auditorium feature engineering
+
+Feature generation is label-independent and produces declared physical-signal
+and operational-context variants. Relationships, past-only rolling means and
+past-only rates are calculated after AHU/timestamp sorting. A shortcut audit
+reports missingness and univariate label associations without changing the
+feature set. Mode-dependent heating/cooling availability is explicitly flagged
+for review rather than being silently treated as fault evidence.
