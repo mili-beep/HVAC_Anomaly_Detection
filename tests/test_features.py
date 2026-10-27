@@ -3,7 +3,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ahu_fdd.features import engineer_features, load_feature_config, shortcut_audit
+from ahu_fdd.features import (
+    engineer_auditorium,
+    engineer_features,
+    load_feature_config,
+    shortcut_audit,
+)
 
 CONFIG = load_feature_config(Path("configs/auditorium.yaml"))
 
@@ -49,3 +54,19 @@ def test_shortcut_audit_is_review_only_and_has_no_metadata_features() -> None:
     assert len(audit) == sum(len(columns) for columns in variants.values())
     assert not {"target_binary", "label_raw", "ahu", "timestamp"} & set(audit["feature"])
     assert {"missingness_shortcut_flag", "value_separation_flag"} <= set(audit.columns)
+
+
+def test_feature_engineering_writes_only_declared_variants(tmp_path: Path) -> None:
+    input_file = tmp_path / "cleaned.csv"
+    output_dir = tmp_path / "phase5"
+    _feature_input().to_csv(input_file, index=False)
+
+    manifest = engineer_auditorium(input_file, output_dir, Path("configs/auditorium.yaml"))
+
+    assert set(manifest["output_files"]) == {
+        "lineage",
+        "shortcut_audit",
+        "physical_signal",
+        "operational_context",
+    }
+    assert not (output_dir / "auditorium_features.csv").exists()

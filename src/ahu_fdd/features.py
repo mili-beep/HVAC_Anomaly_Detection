@@ -253,10 +253,8 @@ def engineer_auditorium(input_file: Path, output_dir: Path, config_path: Path) -
     frame = pd.read_csv(input_file, low_memory=False)
     features, lineage, variants = engineer_features(frame, config)
     audit = shortcut_audit(features, lineage, variants, config)
-    feature_csv = output_dir / "auditorium_features.csv"
     lineage_csv = output_dir / "feature_lineage.csv"
     shortcut_csv = output_dir / "shortcut_audit.csv"
-    features.to_csv(feature_csv, index=False)
     lineage.to_csv(lineage_csv, index=False)
     audit.to_csv(shortcut_csv, index=False)
     variant_paths: dict[str, str] = {}
@@ -280,7 +278,7 @@ def engineer_auditorium(input_file: Path, output_dir: Path, config_path: Path) -
             "shortcut_audit_file": str(shortcut_csv),
             "review_required_feature_count": int(audit["review_required"].sum()),
             "past_only_features_verified": bool(lineage.loc[lineage["past_only"], "past_only"].all()),
-            "output_files": {"features": str(feature_csv), **variant_paths},
+            "output_files": {"lineage": str(lineage_csv), "shortcut_audit": str(shortcut_csv), **variant_paths},
         }
     )
     manifest_path = output_dir / "phase5_manifest.json"

@@ -5,6 +5,7 @@ import pandas as pd
 from ahu_fdd.auditorium import load_policy, prepare_frame
 from ahu_fdd.cleaning import (
     TrainingFoldMedianImputer,
+    clean_auditorium,
     clean_frame,
     load_cleaning_config,
 )
@@ -60,3 +61,16 @@ def test_training_fold_median_imputes_only_eligible_active_gap() -> None:
     assert transformed.loc[1, "imputed__Heating supply temperature"]
     assert transformed["Cooling supply temperature 1"].isna().all()
     assert int(report.loc[report.sensor.eq("Heating supply temperature"), "imputed_count"].iloc[0]) == 1
+
+
+def test_cleaning_writes_one_master_table_and_audit_outputs(tmp_path: Path) -> None:
+    input_file = tmp_path / "prepared.csv"
+    output_dir = tmp_path / "phase4"
+    _prepared_active_gap().to_csv(input_file, index=False)
+
+    manifest = clean_auditorium(input_file, output_dir, Path("configs/auditorium.yaml"))
+
+    assert set(manifest["output_files"]) == {"cleaned", "audit_csv"}
+    assert (output_dir / "auditorium_cleaned.csv").exists()
+    assert (output_dir / "phase4_audit.csv").exists()
+    assert not list(output_dir.glob("*_features.csv"))

@@ -1,8 +1,9 @@
 # Auditorium Phase 5 feature-engineering policy
 
-Phase 5 consumes the Phase 4 cleaned table. It creates reproducible predictors,
-a feature-lineage table, and a shortcut audit. Feature engineering is
-label-independent; labels are used only by the separate shortcut audit.
+Phase 5 consumes the Phase 4 cleaned master table. It creates the two declared
+model-ready predictor variants, a feature-lineage table, and a shortcut audit.
+Feature engineering is label-independent; labels are used only by the
+separate shortcut audit.
 
 ## Declared feature variants
 

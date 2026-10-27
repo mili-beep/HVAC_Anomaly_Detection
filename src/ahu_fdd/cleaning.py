@@ -351,16 +351,6 @@ def _json_safe(value: Any) -> Any:
     return str(value)
 
 
-def _variant_columns(cleaned: pd.DataFrame, config: dict[str, Any]) -> dict[str, list[str]]:
-    sensors = list(config["sensor_feature_columns"])
-    keys = ["building", "ahu", "timestamp", "source_row_id", "label_raw", "target_binary"]
-    operational = keys + sensors + [
-        "heating_active", "cooling_active", "operating_mode_heating",
-        "operating_mode_cooling", "operating_mode_mixed", "operating_mode_unknown",
-    ] + [f"sensor_available__{sensor}" for sensor in sensors]
-    return {"physical_signal": keys + sensors, "operational_context": operational}
-
-
 def clean_auditorium(
     input_file: Path, output_dir: Path, config_path: Path
 ) -> dict[str, Any]:
@@ -370,12 +360,6 @@ def clean_auditorium(
     cleaned, audit, summary = clean_frame(frame, config)
     output_csv = output_dir / "auditorium_cleaned.csv"
     cleaned.to_csv(output_csv, index=False)
-    variants = _variant_columns(cleaned, config)
-    variant_paths: dict[str, str] = {}
-    for name, columns in variants.items():
-        path = output_dir / f"auditorium_{name}_features.csv"
-        cleaned[columns].to_csv(path, index=False)
-        variant_paths[name] = str(path)
     audit_csv = output_dir / "phase4_audit.csv"
     audit.to_csv(audit_csv, index=False)
     manifest = _json_safe(
@@ -389,11 +373,9 @@ def clean_auditorium(
             "policy": config,
             "summary": summary,
             "sensor_feature_columns": config["sensor_feature_columns"],
-            "feature_variants": variants,
             "output_files": {
                 "cleaned": str(output_csv),
                 "audit_csv": str(audit_csv),
-                **variant_paths,
             },
             "imputation": {
                 "performed_by_cli": False,

@@ -89,9 +89,9 @@ clean_auditorium_ahu \
   --config configs/auditorium.yaml
 ```
 
-This writes the cleaned table, physical-signal and operational-context feature
-tables, and a second-audit manifest/summary. It does not fit an imputer on the
-full dataset; imputation is training-fold-only.
+This writes one cleaned master table and a second-audit manifest/summary. It
+does not create model variants or fit an imputer on the full dataset;
+imputation is training-fold-only.
 
 ## Engineer auditorium features under the Phase 5 policy
 
@@ -102,7 +102,7 @@ engineer_auditorium_features \
   --config configs/auditorium.yaml
 ```
 
-This writes the feature table, physical and operational variant tables, a
+This writes the two model-ready physical and operational variant tables, a
 feature-lineage table, and a shortcut-audit table. See
 [docs/auditorium_phase5_policy.md](docs/auditorium_phase5_policy.md).
 

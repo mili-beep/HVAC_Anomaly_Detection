@@ -1,9 +1,9 @@
 # Auditorium Phase 4 cleaning and imputation policy
 
-Phase 4 consumes the sorted Phase 2 auditorium table. It produces cleaned
-numeric sensor values, explicit operating-mode and availability fields, two
-declared feature variants, and a second audit. It does not change the raw file
-or use labels to choose any value.
+Phase 4 consumes the sorted Phase 2 auditorium table. It produces one cleaned
+master table, explicit operating-mode and availability fields, and a second
+audit. It does not create model-ready feature variants; those belong to Phase
+5. It does not change the raw file or use labels to choose any value.
 
 ## Missingness decision
 
@@ -23,18 +23,12 @@ The real auditorium snapshot has no eligible active sensor gaps: its missing
 heating and cooling values are structural mode availability. Therefore the
 Phase 4 command correctly reports zero imputed rows and zero imputed cells.
 
-## Feature variants
+## Output boundary
 
-* **Physical-signal:** the 15 numeric sensor columns only. Placeholder and
-  invalid numeric tokens are converted to missing; no missingness, availability
-  or operating-mode fields are predictors.
-* **Operational-context:** the same sensor columns plus heating/cooling mode
-  indicators and per-sensor availability indicators. This is a declared
-  sensitivity comparison, not a result-selected feature set.
-
-Both variants retain identifiers and targets in their saved tables for joins
-and evaluation, but only the manifest's `predictor_columns` may be supplied to
-a model.
+The cleaned master table retains the raw sensor columns, identifiers, targets,
+operating-mode fields and quality flags needed by later phases. Phase 4 does
+not write separate physical-signal or operational-context CSVs. Phase 5 reads
+this master table and writes the two declared model-ready predictor variants.
 
 ## Leakage controls and audit
 

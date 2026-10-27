@@ -221,29 +221,24 @@ The canonical table should contain:
 
 The adapter must load all three files, reproduce the audited row counts, preserve labels and expose every transformation in the manifest.
 
-## Phase 4 — Cleaning and imputation variants
+## Phase 4 — Cleaning and imputation
 
 ### Objective
 
-Implement only the cleaning decisions approved in Phase 2.
+Implement only the cleaning decisions approved in Phase 2. Phase 4 produces a
+single cleaned master table; model-ready feature variants are generated only
+in Phase 5.
 
-### Feature variants
+### Cleaning outputs
 
-Create two declared variants:
+- one cleaned master table containing numeric sensors, operating-mode fields and
+  quality flags;
+- a per-sensor audit of placeholders, invalid values, missingness and eligible
+  gaps;
+- a manifest and human-readable second-audit summary.
 
-#### Operational variant
-
-- short-gap imputation where justified;
-- missingness indicators;
-- operating-mode indicators;
-- sensor availability information.
-
-#### Physical-signal variant
-
-- no raw placeholder values;
-- no label-defining missingness shortcuts;
-- physical sensor and relationship features only;
-- unresolved long gaps retained or excluded according to the policy.
+The physical-signal and operational-context model variants are created in
+Phase 5, after cleaning decisions have been applied.
 
 ### Rules
 
