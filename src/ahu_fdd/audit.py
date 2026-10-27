@@ -220,7 +220,9 @@ def _coverage_audit(frame: pd.DataFrame, timestamps: pd.Series) -> dict[str, Any
         end = observed_dates.max()
         expected_dates = pd.date_range(start, end, freq="D")
         missing_dates = expected_dates.difference(observed_dates)
-        expected_hours = pd.date_range(start, end, freq="h")
+        timestamp_start = group["timestamp"].min()
+        timestamp_end = group["timestamp"].max()
+        expected_hours = pd.date_range(timestamp_start, timestamp_end, freq="h")
         observed_hours = pd.DatetimeIndex(group["timestamp"].drop_duplicates()).sort_values()
         missing_hours = expected_hours.difference(observed_hours)
         records.append(
