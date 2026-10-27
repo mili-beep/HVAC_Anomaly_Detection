@@ -150,11 +150,31 @@ contains four named designs: AHU-held-out, chronological, building-held-out
 transfer, and nested grouped validation. Later models must use these saved
 assignments rather than creating new random row splits.
 
+## Evaluate the five detection baselines
+
+The baseline comparison uses the frozen assignments and evaluates five
+complementary questions: a majority-class lower bound, a transparent normal
+envelope rule, missingness-only evidence, temperature-only evidence, and
+actuator/pump-only evidence.
+
+```bash
+evaluate_detection_baselines \
+  --data-file data/interim/canonical/canonical_ahu.csv \
+  --splits-file data/interim/evaluation_splits/evaluation_splits.csv \
+  --output-dir results/baselines \
+  --config configs/baselines.yaml
+```
+
+The output contains fold metrics, a summary table, a manifest and a readable
+Markdown comparison. Imputation is fitted inside each training fold; no test
+labels or test values are used to choose thresholds.
+
 ## Repository status
 
 Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
 the Phase 3 canonical ingestion adapter, the Phase 4 auditorium cleaning
 policy, the Phase 5 auditorium feature policy, auditorium normal-operation
 pattern discovery, and the evaluation split implementation are complete.
-Model training should use the saved split assignments. See
+The five detection baselines are now implemented; model training should use
+the saved split assignments. See
 [docs/project_plan.md](docs/project_plan.md) for the staged implementation plan.

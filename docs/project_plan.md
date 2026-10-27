@@ -361,7 +361,7 @@ Use inner folds for model selection and an untouched outer fold for the final es
 
 The split implementation must pass synthetic tests proving that the same AHU cannot appear in both train and test for a grouped split.
 
-## Phase 7 — Baselines
+## Baseline comparisons
 
 ### Objective
 
@@ -370,11 +370,14 @@ Establish whether machine learning adds value beyond simple alternatives.
 ### Baselines
 
 1. Majority-class predictor.
-2. Published-label distribution baseline.
-3. Simple threshold/rule baseline.
-4. Missingness-only classifier.
-5. Temperature-only classifier.
-6. Actuator/pump-only classifier.
+2. Simple normal-envelope rule.
+3. Missingness-only classifier.
+4. Temperature-only classifier.
+5. Actuator/pump-only classifier.
+
+The published-label distribution baseline is not included as a separate run:
+for this binary task it duplicates the information in the majority-class
+predictor and adds no operationally distinct comparison.
 
 These baselines are essential because a high ML score is not meaningful if a missing-value rule achieves the same result.
 

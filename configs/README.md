@@ -12,3 +12,7 @@ Future building policies should follow the same one-file-per-building pattern.
 `evaluation_splits.yaml` contains only evaluation-design settings. It is used
 by `create_evaluation_splits` to freeze the four leakage-safe split designs;
 it does not contain model hyperparameters.
+
+`baselines.yaml` defines the five transparent detection comparisons and their
+feature groups. It is kept separate from model configurations because these
+are diagnostic benchmarks, not the final supervised model.

@@ -13,6 +13,7 @@ data/processed/*
 
 # Generated experiment outputs can be large and are rebuilt from code.
 results/runs/*
+results/baselines/*
 results/figures/*
 
 # Keep directory documentation in the repository.

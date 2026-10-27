@@ -1,0 +1,31 @@
+schema_version: 1
+normal_label: Normal condition
+
+# These groups are diagnostic comparisons, not headline model features.
+feature_groups:
+  temperature:
+    - setpoint_temperature
+    - return_temperature
+    - supply_air_temperature
+    - heating_supply_temperature_1
+    - heating_supply_temperature_2
+    - cooling_supply_temperature_1
+    - cooling_supply_temperature_2
+  actuator_pump:
+    - supply_fan
+    - valve_position
+    - heating_exchanger
+    - heating_pump_total
+    - heating_pump_1
+    - heating_pump_2
+    - heating_pump_3
+    - cooling_pump_total
+    - cooling_pump_1
+    - cooling_pump_2
+    - cooling_pump_3
+    - cooling_pump_4
+
+# A normal-envelope rule is fitted from normal training rows only.
+normal_envelope_rule:
+  lower_quantile: 0.01
+  upper_quantile: 0.99
