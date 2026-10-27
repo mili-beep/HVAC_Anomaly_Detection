@@ -427,7 +427,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Clean prepared auditorium data under the Phase 4 policy")
     parser.add_argument("--input-file", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=Path("data/processed/auditorium/phase4"))
-    parser.add_argument("--config", type=Path, default=Path("configs/auditorium_phase4.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("configs/auditorium.yaml"))
     args = parser.parse_args(argv)
     manifest = clean_auditorium(args.input_file, args.output_dir, args.config)
     print(f"Cleaned {manifest['summary']['output_rows']:,} auditorium rows into {args.output_dir.resolve()}")

@@ -5,7 +5,7 @@ import pytest
 
 from ahu_fdd.patterns import discover_patterns, load_pattern_config
 
-CONFIG = load_pattern_config(Path("configs/auditorium_patterns.yaml"))
+CONFIG = load_pattern_config(Path("configs/auditorium.yaml"))
 
 
 def _pattern_input() -> pd.DataFrame:

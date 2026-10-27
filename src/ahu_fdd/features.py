@@ -292,7 +292,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Engineer auditorium AHU features and audit shortcuts")
     parser.add_argument("--input-file", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=Path("data/processed/auditorium/phase5"))
-    parser.add_argument("--config", type=Path, default=Path("configs/auditorium_phase5.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("configs/auditorium.yaml"))
     args = parser.parse_args(argv)
     manifest = engineer_auditorium(args.input_file, args.output_dir, args.config)
     print(f"Generated {manifest['feature_count']} auditorium features into {args.output_dir.resolve()}")

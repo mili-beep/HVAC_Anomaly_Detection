@@ -208,7 +208,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument(
         "--policy",
         type=Path,
-        default=Path("configs/auditorium_phase2.yaml"),
+        default=Path("configs/auditorium.yaml"),
     )
     args = parser.parse_args(argv)
     manifest = prepare_auditorium(args.data_root, args.output_dir, args.policy)

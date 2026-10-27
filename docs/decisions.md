@@ -23,7 +23,7 @@ models are trained.
 ## 2026-10-27 — Phase 2 auditorium policy implemented
 
 The auditorium policy is frozen in
-`configs/auditorium_phase2.yaml` and documented in
+`configs/auditorium.yaml` and documented in
 `docs/auditorium_phase2_policy.md`. The source label mapping is explicitly:
 
 ```text

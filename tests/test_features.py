@@ -5,7 +5,7 @@ import pandas as pd
 
 from ahu_fdd.features import engineer_features, load_feature_config, shortcut_audit
 
-CONFIG = load_feature_config(Path("configs/auditorium_phase5.yaml"))
+CONFIG = load_feature_config(Path("configs/auditorium.yaml"))
 
 
 def _feature_input() -> pd.DataFrame:

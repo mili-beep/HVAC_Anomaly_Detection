@@ -51,7 +51,7 @@ The choice between variants will not be made after inspecting results.
 
 The policy does not select features by taking every column except a short
 exclusion list. It declares three disjoint roles in
-`configs/auditorium_phase2.yaml`:
+`configs/auditorium.yaml`:
 
 * `sensor_feature_columns` contains the 15 measured auditorium signals. These
   are the only inputs to the physical-signal headline variant.

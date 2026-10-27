@@ -9,8 +9,8 @@ from ahu_fdd.cleaning import (
     load_cleaning_config,
 )
 
-PHASE2 = load_policy(Path("configs/auditorium_phase2.yaml"))
-PHASE4 = load_cleaning_config(Path("configs/auditorium_phase4.yaml"))
+PHASE2 = load_policy(Path("configs/auditorium.yaml"))
+PHASE4 = load_cleaning_config(Path("configs/auditorium.yaml"))
 
 
 def _prepared_active_gap() -> pd.DataFrame:

@@ -331,7 +331,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Discover normal-operation patterns in prepared AHU data")
     parser.add_argument("--input-file", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=Path("data/processed/auditorium/patterns"))
-    parser.add_argument("--config", type=Path, default=Path("configs/auditorium_patterns.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("configs/auditorium.yaml"))
     args = parser.parse_args(argv)
     manifest = discover_auditorium(args.input_file, args.output_dir, args.config)
     print(f"Discovered patterns from {manifest['summary']['normal_rows']:,} normal rows into {args.output_dir.resolve()}")

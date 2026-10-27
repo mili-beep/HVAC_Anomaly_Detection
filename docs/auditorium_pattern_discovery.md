@@ -21,7 +21,7 @@ Run Phase 4 first, then execute:
 discover_auditorium_patterns \
   --input-file data/processed/auditorium/phase4/auditorium_cleaned.csv \
   --output-dir data/processed/auditorium/patterns \
-  --config configs/auditorium_patterns.yaml
+  --config configs/auditorium.yaml
 ```
 
 The same operation can be run without an editable package installation:
@@ -30,7 +30,7 @@ The same operation can be run without an editable package installation:
 .venv/bin/python -m ahu_fdd.patterns \
   --input-file data/processed/auditorium/phase4/auditorium_cleaned.csv \
   --output-dir data/processed/auditorium/patterns \
-  --config configs/auditorium_patterns.yaml
+  --config configs/auditorium.yaml
 ```
 
 ## Outputs

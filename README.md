@@ -56,7 +56,7 @@ The command writes `audit_manifest.json`, `audit_summary.md`,
 prepare_auditorium_ahu \
   --data-root /Users/mili/Downloads/27147678 \
   --output-dir data/processed/auditorium \
-  --policy configs/auditorium_phase2.yaml
+  --policy configs/auditorium.yaml
 ```
 
 This creates a sorted, traceable derived table and a preparation manifest. It
@@ -86,7 +86,7 @@ First prepare the Phase 2 table, then run:
 clean_auditorium_ahu \
   --input-file data/processed/auditorium/auditorium_prepared.csv \
   --output-dir data/processed/auditorium/phase4 \
-  --config configs/auditorium_phase4.yaml
+  --config configs/auditorium.yaml
 ```
 
 This writes the cleaned table, physical-signal and operational-context feature
@@ -99,7 +99,7 @@ full dataset; imputation is training-fold-only.
 engineer_auditorium_features \
   --input-file data/processed/auditorium/phase4/auditorium_cleaned.csv \
   --output-dir data/processed/auditorium/phase5 \
-  --config configs/auditorium_phase5.yaml
+  --config configs/auditorium.yaml
 ```
 
 This writes the feature table, physical and operational variant tables, a
@@ -117,7 +117,7 @@ monthly profiles, mode transitions, and PCA visualisations:
 discover_auditorium_patterns \
   --input-file data/processed/auditorium/phase4/auditorium_cleaned.csv \
   --output-dir data/processed/auditorium/patterns \
-  --config configs/auditorium_patterns.yaml
+  --config configs/auditorium.yaml
 ```
 
 PCA median-fills values only for the visualisation matrix; this is not the
