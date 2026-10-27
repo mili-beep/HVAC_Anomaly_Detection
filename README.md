@@ -124,6 +124,16 @@ PCA median-fills values only for the visualisation matrix; this is not the
 training imputation policy. See
 [docs/auditorium_pattern_discovery.md](docs/auditorium_pattern_discovery.md).
 
+## Demonstrate the complete auditorium workflow
+
+After the audit, preparation, cleaning, feature-engineering and pattern
+discovery commands have completed, open
+`notebooks/01_auditorium_pipeline_walkthrough.ipynb`. It reads the saved
+artefacts and creates report-ready Matplotlib figures for label support,
+missingness, operating modes, feature families, shortcut flags, hourly and
+monthly profiles, and normal-operation PCA. The notebook is a presentation
+layer; the tested Python modules remain the source of truth.
+
 ## Repository status
 
 Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
