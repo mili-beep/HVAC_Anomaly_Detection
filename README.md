@@ -60,11 +60,12 @@ prepare_auditorium_ahu \
 ```
 
 This creates a sorted, traceable derived table and a preparation manifest. It
-does not impute values or train a model.
+does not impute values or train a model. The manifest records explicit sensor,
+quality, and metadata column groups for later feature selection.
 
 ## Repository status
 
-Phase 0 and the Phase 1 raw-data audit are complete. The next gate is the
-data-quality and label policy; no modelling should begin until that policy is
-frozen. See [docs/project_plan.md](docs/project_plan.md) for the staged
-implementation plan.
+Phase 0, the Phase 1 raw-data audit, and the Phase 2 auditorium preparation
+policy are complete. The next gate is feature engineering and split design;
+no modelling should begin until those choices are frozen. See
+[docs/project_plan.md](docs/project_plan.md) for the staged implementation plan.

@@ -47,11 +47,24 @@ Two pre-declared feature variants will be compared later:
 
 The choice between variants will not be made after inspecting results.
 
-## Feature exclusions
+## Explicit feature roles
 
-AHU identity, source row number, timestamp, labels, and label-derived run
-information are metadata or targets, not predictive features. They may be used
-for grouping, splitting, traceability, and reporting.
+The policy does not select features by taking every column except a short
+exclusion list. It declares three disjoint roles in
+`configs/auditorium_phase2.yaml`:
+
+* `sensor_feature_columns` contains the 15 measured auditorium signals. These
+  are the only inputs to the physical-signal headline variant.
+* `quality_columns` contains temporal-gap fields, aggregate missingness fields,
+  and the `is_missing__...` indicators. They are retained for audit and are
+  included only in the pre-declared operational-context sensitivity variant.
+* `metadata_columns` contains raw identity, timestamp, source-row, label, and
+  target fields. These support grouping, splitting, traceability, and reporting
+  but must never be model inputs.
+
+The preparation manifest records all three groups and resolves the two feature
+variants. This makes accidental inclusion of `AHU name`, `Time`, `labeling`,
+`target_binary`, or a quality flag detectable before modelling.
 
 ## Quality failures
 

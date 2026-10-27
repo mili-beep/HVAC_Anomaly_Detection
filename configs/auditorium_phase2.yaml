@@ -5,15 +5,65 @@ normal_label: Normal condition
 binary_fault_label: fault
 binary_normal_label: normal
 
-# These fields are retained as quality metadata but are not headline model features.
-excluded_from_features:
+# Feature roles are explicit rather than inferred from "all columns except ...".
+# This prevents a future selector from accidentally using an identifier, label,
+# or quality flag as a physical sensor feature.
+sensor_feature_columns:
+  - Set point temperature
+  - Return temperature
+  - Supply air temperature
+  - Supply fan
+  - Valve position
+  - Heating supply temperature
+  - Total heating pump
+  - Heating pump 1
+  - Heating pump 2
+  - Heating pump 3
+  - Cooling supply temperature 1
+  - Cooling supply temperature 2
+  - Total cooling pump
+  - Cooling pump 1
+  - Cooling pump 2
+
+metadata_columns:
+  - AHU name
+  - Time
+  - labeling
+  - building
   - ahu
   - source_row_id
   - timestamp
   - label_raw
   - target_binary
+
+quality_columns:
   - hours_since_previous_observation
   - is_time_gap
+  - missing_sensor_count
+  - has_missing_sensor
+  - is_missing__Set point temperature
+  - is_missing__Return temperature
+  - is_missing__Supply air temperature
+  - is_missing__Supply fan
+  - is_missing__Valve position
+  - is_missing__Heating supply temperature
+  - is_missing__Total heating pump
+  - is_missing__Heating pump 1
+  - is_missing__Heating pump 2
+  - is_missing__Heating pump 3
+  - is_missing__Cooling supply temperature 1
+  - is_missing__Cooling supply temperature 2
+  - is_missing__Total cooling pump
+  - is_missing__Cooling pump 1
+  - is_missing__Cooling pump 2
+
+# The headline model uses only measured signals. The sensitivity variant adds
+# observed/missing indicators to test dependence on data availability.
+feature_variants:
+  physical_signal: sensor_feature_columns
+  operational_context:
+    - sensor_feature_columns
+    - missingness_indicators
 
 imputation:
   strategy: median

@@ -37,6 +37,12 @@ gaps and per-feature missingness flags, and fails on invalid timestamps or
 duplicate AHU/timestamp keys. No imputation or modelling is performed in this
 phase.
 
+The policy also defines disjoint `sensor_feature_columns`, `quality_columns`,
+and `metadata_columns`. Feature selection must use these declarations rather
+than an inferred exclusion list. The physical-signal variant uses only sensor
+columns; the operational-context sensitivity variant adds the declared
+missingness indicators; metadata and targets are never model inputs.
+
 ## 2026-10-27 — Phase 1 audit completed
 
 The reproducible audit command is:

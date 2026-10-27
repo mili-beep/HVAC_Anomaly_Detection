@@ -20,45 +20,74 @@ REQUIRED_COLUMNS = {
     "Time",
     "labeling",
 }
-METADATA_COLUMNS = {
-    "building",
-    "ahu",
-    "source_row_id",
-    "timestamp",
-    "label_raw",
-    "target_binary",
-    "hours_since_previous_observation",
-    "is_time_gap",
-}
-
-
 def load_policy(path: Path) -> dict[str, Any]:
     policy = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(policy, dict) or policy.get("building") != "auditorium":
         raise ValueError("The Phase 2 policy must describe the auditorium building")
+    _validate_feature_policy(policy)
     return policy
 
 
-def _sensor_columns(frame: pd.DataFrame) -> list[str]:
-    excluded = METADATA_COLUMNS | {
-        "AHU name",
-        "Time",
-        "labeling",
-        "missing_sensor_count",
-        "has_missing_sensor",
+def _validate_feature_policy(policy: dict[str, Any]) -> None:
+    """Validate the explicit feature-role contract before any preparation."""
+    roles = ("sensor_feature_columns", "metadata_columns", "quality_columns")
+    for role in roles:
+        columns = policy.get(role)
+        if not isinstance(columns, list) or not columns or not all(
+            isinstance(column, str) and column for column in columns
+        ):
+            raise ValueError(f"Policy field {role!r} must be a non-empty list of names")
+        if len(columns) != len(set(columns)):
+            raise ValueError(f"Policy field {role!r} contains duplicate names")
+    sensor = set(policy["sensor_feature_columns"])
+    metadata = set(policy["metadata_columns"])
+    quality = set(policy["quality_columns"])
+    if sensor & (metadata | quality):
+        raise ValueError("Sensor, metadata, and quality column roles must be disjoint")
+    if "AHU name" not in metadata or "Time" not in metadata or "labeling" not in metadata:
+        raise ValueError("Metadata columns must include the raw identity and label fields")
+    expected_indicators = {f"is_missing__{column}" for column in sensor}
+    if not expected_indicators <= quality:
+        missing = sorted(expected_indicators - quality)
+        raise ValueError(f"Quality columns omit missingness indicators: {missing}")
+
+
+def _sensor_columns(policy: dict[str, Any]) -> list[str]:
+    return list(policy["sensor_feature_columns"])
+
+
+def _quality_columns(policy: dict[str, Any]) -> list[str]:
+    return list(policy["quality_columns"])
+
+
+def _metadata_columns(policy: dict[str, Any]) -> list[str]:
+    return list(policy["metadata_columns"])
+
+
+def _missingness_columns(policy: dict[str, Any]) -> list[str]:
+    sensor_columns = _sensor_columns(policy)
+    return [f"is_missing__{column}" for column in sensor_columns]
+
+
+def _feature_variant_columns(policy: dict[str, Any]) -> dict[str, list[str]]:
+    """Resolve the declared physical and operational-context feature variants."""
+    return {
+        "physical_signal": _sensor_columns(policy),
+        "operational_context": _sensor_columns(policy) + _missingness_columns(policy),
     }
-    return [
-        column
-        for column in frame.columns
-        if column not in excluded and not column.startswith("is_missing__")
-    ]
 
 
 def prepare_frame(frame: pd.DataFrame, policy: dict[str, Any]) -> pd.DataFrame:
     """Create the deterministic auditorium Phase 2 table from a raw frame."""
+    _validate_feature_policy(policy)
+    sensor_columns = _sensor_columns(policy)
+    missingness_columns = _missingness_columns(policy)
     missing_columns = REQUIRED_COLUMNS - set(frame.columns)
     if missing_columns:
         raise ValueError(f"Missing required auditorium columns: {sorted(missing_columns)}")
+    missing_sensors = set(sensor_columns) - set(frame.columns)
+    if missing_sensors:
+        raise ValueError(f"Missing configured auditorium sensors: {sorted(missing_sensors)}")
 
     prepared = frame.copy()
     prepared.insert(0, "source_row_id", np.arange(len(prepared), dtype=np.int64))
@@ -83,11 +112,6 @@ def prepare_frame(frame: pd.DataFrame, policy: dict[str, Any]) -> pd.DataFrame:
         str(policy["binary_fault_label"]),
     )
 
-    sensor_columns = [
-        column
-        for column in prepared.columns
-        if column not in {"AHU name", "Time", "labeling", "timestamp", "building", "ahu", "source_row_id", "label_raw", "target_binary"}
-    ]
     prepared = prepared.sort_values(["ahu", "timestamp"], kind="stable").reset_index(drop=True)
     deltas = prepared.groupby("ahu", sort=False)["timestamp"].diff().dt.total_seconds() / 3600
     prepared["hours_since_previous_observation"] = deltas
@@ -96,6 +120,25 @@ def prepare_frame(frame: pd.DataFrame, policy: dict[str, Any]) -> pd.DataFrame:
         prepared[f"is_missing__{column}"] = prepared[column].isna()
     prepared["missing_sensor_count"] = prepared[sensor_columns].isna().sum(axis=1)
     prepared["has_missing_sensor"] = prepared["missing_sensor_count"].gt(0)
+    actual_quality = set(_quality_columns(policy))
+    missing_quality = actual_quality - set(prepared.columns)
+    if missing_quality:
+        raise ValueError(f"Configured quality columns were not produced: {sorted(missing_quality)}")
+    if set(missingness_columns) - actual_quality:
+        raise ValueError("Configured quality columns must include all sensor missingness flags")
+    declared_columns = set(_sensor_columns(policy)) | set(_metadata_columns(policy)) | actual_quality
+    undeclared_columns = set(prepared.columns) - declared_columns
+    if undeclared_columns:
+        raise ValueError(
+            "Prepared data contains columns with no declared feature role: "
+            f"{sorted(undeclared_columns)}"
+        )
+    missing_declared_columns = declared_columns - set(prepared.columns)
+    if missing_declared_columns:
+        raise ValueError(
+            "Feature-role policy declares columns that are absent from prepared data: "
+            f"{sorted(missing_declared_columns)}"
+        )
     return prepared
 
 
@@ -144,10 +187,10 @@ def prepare_auditorium(data_root: Path, output_dir: Path, policy_path: Path) -> 
             "source_label_counts": prepared["label_raw"].value_counts().to_dict(),
             "time_gap_rows": int(prepared["is_time_gap"].sum()),
             "missing_sensor_rows": int(prepared["has_missing_sensor"].sum()),
-            "feature_columns": _sensor_columns(prepared),
-            "missingness_indicator_columns": [
-                column for column in prepared.columns if column.startswith("is_missing__")
-            ],
+            "sensor_feature_columns": _sensor_columns(policy),
+            "quality_columns": _quality_columns(policy),
+            "metadata_columns": _metadata_columns(policy),
+            "feature_variants": _feature_variant_columns(policy),
             "output_file": str(output_csv),
             "policy_file": str(policy_path.resolve()),
         }
