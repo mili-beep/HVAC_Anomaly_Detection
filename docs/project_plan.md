@@ -258,6 +258,38 @@ Create two declared variants:
 
 The cleaned data must pass a second audit. The second audit must show exactly how many rows were changed, excluded, imputed or retained with flags.
 
+## Normal-operation pattern discovery — supporting activity before modelling
+
+### Objective
+
+Describe normal AHU behaviour before selecting or evaluating models. This is a
+separate descriptive activity, not a detector and not a replacement for the
+Phase 5 feature-engineering work.
+
+### Analysis
+
+- use only rows labelled `Normal condition`;
+- summarise sensor distributions by AHU, operating mode, hour and month;
+- record normal-mode transitions within each AHU stream;
+- create deterministic, mode-specific PCA visualisations of normal operation;
+- exclude labels from all profile and PCA inputs;
+- keep any PCA median filling local to the visualisation matrix and separate
+  from training-fold imputation.
+
+### Deliverables
+
+- `discover_auditorium_patterns` command;
+- normal-operation profile tables and transition summaries;
+- PCA coordinates, explained-variance tables and figures;
+- input-checksummed manifest and human-readable summary;
+- tests proving fault rows are excluded and duplicate AHU/timestamp keys fail.
+
+### Acceptance gate
+
+The outputs must be reproducible from the cleaned auditorium table, clearly
+identify the normal rows used, and state that the profiles are descriptive
+artefacts rather than evidence of detector performance.
+
 ## Phase 5 — Feature engineering and shortcut audit
 
 ### Objective

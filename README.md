@@ -106,11 +106,29 @@ This writes the feature table, physical and operational variant tables, a
 feature-lineage table, and a shortcut-audit table. See
 [docs/auditorium_phase5_policy.md](docs/auditorium_phase5_policy.md).
 
+## Discover normal-operation patterns
+
+Pattern discovery is a descriptive step for understanding normal operation. It
+uses only rows labelled `Normal condition`; fault labels are excluded from the
+profiles and are not predictors. It produces AHU/mode summaries, hourly and
+monthly profiles, mode transitions, and PCA visualisations:
+
+```bash
+discover_auditorium_patterns \
+  --input-file data/processed/auditorium/phase4/auditorium_cleaned.csv \
+  --output-dir data/processed/auditorium/patterns \
+  --config configs/auditorium_patterns.yaml
+```
+
+PCA median-fills values only for the visualisation matrix; this is not the
+training imputation policy. See
+[docs/auditorium_pattern_discovery.md](docs/auditorium_pattern_discovery.md).
+
 ## Repository status
 
 Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
 the Phase 3 canonical ingestion adapter, the Phase 4 auditorium cleaning
-policy, and the Phase 5 auditorium feature policy are complete. The next gate
-is split/evaluation design; no modelling should begin until those choices are
-frozen. See
+policy, the Phase 5 auditorium feature policy, and auditorium normal-operation
+pattern discovery are complete. The next gate is split/evaluation design; no
+modelling should begin until those choices are frozen. See
 [docs/project_plan.md](docs/project_plan.md) for the staged implementation plan.

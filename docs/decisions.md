@@ -91,3 +91,14 @@ past-only rates are calculated after AHU/timestamp sorting. A shortcut audit
 reports missingness and univariate label associations without changing the
 feature set. Mode-dependent heating/cooling availability is explicitly flagged
 for review rather than being silently treated as fault evidence.
+
+## 2026-10-27 — Auditorium pattern discovery
+
+Normal-operation pattern discovery is a descriptive artefact, separate from
+feature engineering and model training. Profiles are calculated only from rows
+whose raw label is `Normal condition`, grouped by AHU, operating mode, hour and
+month. The output includes sensor summaries, normal mode transitions and PCA
+visualisations. Fault rows are excluded from these profiles, and labels are not
+used as model inputs. PCA uses deterministic per-mode sampling and median
+filling only to create a two-dimensional visualisation; it must not be treated
+as the Phase 4 training-fold imputation policy.
