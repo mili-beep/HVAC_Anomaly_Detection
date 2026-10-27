@@ -169,12 +169,31 @@ The output contains fold metrics, a summary table, a manifest and a readable
 Markdown comparison. Imputation is fitted inside each training fold; no test
 labels or test values are used to choose thresholds.
 
+## Run detection experiments
+
+After creating the canonical table and frozen split assignments, run the core
+detection comparison:
+
+```bash
+run_detection_experiments \
+  --data-file data/interim/canonical/canonical_ahu.csv \
+  --splits-file data/interim/evaluation_splits/evaluation_splits.csv \
+  --output-dir results/detection \
+  --config configs/detection.yaml \
+  --building-config configs/multibuilding_ahu.yaml
+```
+
+This evaluates the statistical envelope, Isolation Forest and XGBoost. The
+LSTM autoencoder is included in the implementation but requires TensorFlow;
+when it is not installed, the run records it as unavailable rather than
+substituting another model. See [docs/detection_experiments.md](docs/detection_experiments.md).
+
 ## Repository status
 
 Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
 the Phase 3 canonical ingestion adapter, the Phase 4 auditorium cleaning
 policy, the Phase 5 auditorium feature policy, auditorium normal-operation
 pattern discovery, and the evaluation split implementation are complete.
-The five detection baselines are now implemented; model training should use
-the saved split assignments. See
+The five detection baselines and the first detection experiment runner are
+now implemented; all model training uses the saved split assignments. See
 [docs/project_plan.md](docs/project_plan.md) for the staged implementation plan.

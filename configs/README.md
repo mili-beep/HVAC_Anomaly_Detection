@@ -16,3 +16,6 @@ it does not contain model hyperparameters.
 `baselines.yaml` defines the five transparent detection comparisons and their
 feature groups. It is kept separate from model configurations because these
 are diagnostic benchmarks, not the final supervised model.
+
+`detection.yaml` freezes the model settings and detection thresholds used by
+the statistical envelope, Isolation Forest, XGBoost and optional LSTM tracks.

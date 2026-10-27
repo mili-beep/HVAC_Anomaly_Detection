@@ -82,6 +82,16 @@ row-assignment table, a manifest and a human-readable summary. Detection and
 diagnosis experiments must consume these assignments so the statistical
 baseline and XGBoost are compared on identical folds.
 
+## 2026-10-27 — Detection model comparison matrix
+
+The detection comparison uses the statistical normal envelope, Isolation Forest,
+XGBoost and an LSTM autoencoder. The statistical envelope and LSTM use the
+physical-signal track; Isolation Forest and XGBoost are tested with both the
+physical-signal and operational-context variants. Every method consumes the
+same frozen AHU-held-out, chronological, building-held-out and nested grouped
+assignments. The LSTM is an optional TensorFlow adapter and must be reported as
+unavailable when its dependency is absent, never replaced silently.
+
 ## 2026-10-27 — Phase 4 auditorium cleaning
 
 Auditorium heating and cooling missingness is treated as structural operating

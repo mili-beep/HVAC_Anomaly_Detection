@@ -1,0 +1,35 @@
+schema_version: 1
+normal_label: Normal condition
+
+statistical_envelope:
+  normal_envelope_rule:
+    lower_quantile: 0.01
+    upper_quantile: 0.99
+
+models:
+  statistical_envelope: {}
+  isolation_forest:
+    n_estimators: 150
+    max_samples: 2048
+    random_state: 42
+    n_jobs: 2
+    normal_score_quantile: 0.01
+  xgboost:
+    n_estimators: 250
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    objective: binary:logistic
+    eval_metric: logloss
+    tree_method: hist
+    n_jobs: 2
+    random_state: 42
+  lstm_autoencoder:
+    sequence_length: 12
+    hidden_units: 32
+    epochs: 5
+    batch_size: 256
+    max_train_sequences: 20000
+    random_state: 42
+    normal_error_quantile: 0.99

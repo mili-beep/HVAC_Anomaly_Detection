@@ -385,7 +385,7 @@ These baselines are essential because a high ML score is not meaningful if a mis
 
 The baseline table must be complete before selecting a headline model.
 
-## Phase 8 — Detection experiments
+## Detection experiments
 
 ### Objective
 
