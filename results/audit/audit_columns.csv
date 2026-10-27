@@ -1,0 +1,53 @@
+building,column,pandas_dtype,inferred_type,numeric_parse_ratio,row_count,unique_non_null,constant_non_null,missing_count,placeholder_count,nonfinite_count
+auditorium,AHU name,str,string,0.0,113375,13,False,0,0,0
+auditorium,Time,str,string,0.0,113375,8722,False,0,0,0
+auditorium,Set point temperature,float64,floating,1.0,113375,184,False,0,0,0
+auditorium,Return temperature,float64,floating,1.0,113375,2355,False,0,0,0
+auditorium,Supply air temperature,float64,floating,1.0,113375,2993,False,0,0,0
+auditorium,Supply fan,float64,floating,1.0,113375,21,False,0,0,0
+auditorium,Valve position,float64,floating,1.0,113375,5776,False,0,0,0
+auditorium,Heating supply temperature,float64,floating,1.0,113375,1760,False,57395,0,0
+auditorium,Total heating pump,float64,floating,1.0,113375,95,False,57395,0,0
+auditorium,Heating pump 1,float64,floating,1.0,113375,31,False,57395,0,0
+auditorium,Heating pump 2,float64,floating,1.0,113375,34,False,57395,0,0
+auditorium,Heating pump 3,float64,floating,1.0,113375,34,False,57395,0,0
+auditorium,Cooling supply temperature 1,float64,floating,1.0,113375,1188,False,55980,0,0
+auditorium,Cooling supply temperature 2,float64,floating,1.0,113375,1261,False,55980,0,0
+auditorium,Total cooling pump,float64,floating,1.0,113375,25,False,55980,0,0
+auditorium,Cooling pump 1,float64,floating,1.0,113375,12,False,55980,0,0
+auditorium,Cooling pump 2,float64,floating,1.0,113375,12,False,55980,0,0
+auditorium,labeling,str,string,0.0,113375,7,False,0,0,0
+hospital,AHU name,str,string,0.0,66048,8,False,0,0,0
+hospital,DATE,str,string,0.0,66048,344,False,0,0,0
+hospital,Time,str,string,0.0,66048,24,False,0,0,0
+hospital,Set point temperature,float64,floating,1.0,66048,28,False,0,0,0
+hospital,Return temperature,str,string,1.0,66048,158,False,24,8184,0
+hospital,Supply air temperature,str,string,1.0,66048,326,False,0,24,0
+hospital,Supply fan,float64,floating,1.0,66048,2,False,0,0,0
+hospital,Valve position,float64,floating,1.0,66048,236,False,0,0,0
+hospital,Heat Exchanger,float64,floating,1.0,66048,2,False,28416,0,0
+hospital,Heating supply temperature,float64,floating,1.0,66048,212,False,28416,0,0
+hospital,Cooling supply temperature,float64,floating,1.0,66048,185,False,37632,0,0
+hospital,cooling pump,float64,floating,1.0,66048,1,True,37632,0,0
+hospital,labeling,str,string,0.0,66048,6,False,0,0,0
+office,AHU name,str,string,0.0,175532,20,False,0,0,0
+office,Time,str,string,0.0,175532,8778,False,0,0,0
+office,Set point temperature,int64,integer,1.0,175532,17,False,0,0,0
+office,Return temperature,float64,floating,1.0,175532,2894,False,0,0,0
+office,Supply air temperature,float64,floating,1.0,175532,3514,False,0,0,0
+office,Supply fan,float64,floating,1.0,175532,20,False,0,0,0
+office,Valve position,float64,floating,1.0,175532,7652,False,0,0,0
+office,Heating supply temperature1,float64,floating,1.0,175532,1762,False,73412,0,0
+office,Heating supply temperature2,float64,floating,1.0,175532,1891,False,73412,0,0
+office,Total heating pump,float64,floating,1.0,175532,46,False,73412,0,0
+office,Heating pump 1,float64,floating,1.0,175532,17,False,73412,0,0
+office,Heating pump 2,float64,floating,1.0,175532,13,False,73412,0,0
+office,Heating pump 3,float64,floating,1.0,175532,26,False,73412,0,0
+office,Cooling supply temperature 1,float64,floating,1.0,175532,1336,False,102120,0,0
+office,Cooling supply temperature 2,float64,floating,1.0,175532,1267,False,102120,0,0
+office,Total cooling pump,float64,floating,1.0,175532,30,False,102120,0,0
+office,cooling pump 1,float64,floating,1.0,175532,11,False,102120,0,0
+office,cooling pump 2,float64,floating,1.0,175532,12,False,102120,0,0
+office,cooling pump 3,float64,floating,1.0,175532,12,False,102120,0,0
+office,cooling pump 4,float64,floating,1.0,175532,11,False,102120,0,0
+office,labeling,str,string,0.0,175532,5,False,0,0,0

@@ -1,0 +1,30 @@
+building,column,missing_count,missing_rate,placeholder_count,placeholder_rate,nonfinite_count
+auditorium,Heating supply temperature,57395,0.5062403528114664,0,0.0,0
+auditorium,Total heating pump,57395,0.5062403528114664,0,0.0,0
+auditorium,Heating pump 1,57395,0.5062403528114664,0,0.0,0
+auditorium,Heating pump 2,57395,0.5062403528114664,0,0.0,0
+auditorium,Heating pump 3,57395,0.5062403528114664,0,0.0,0
+auditorium,Cooling supply temperature 1,55980,0.4937596471885336,0,0.0,0
+auditorium,Cooling supply temperature 2,55980,0.4937596471885336,0,0.0,0
+auditorium,Total cooling pump,55980,0.4937596471885336,0,0.0,0
+auditorium,Cooling pump 1,55980,0.4937596471885336,0,0.0,0
+auditorium,Cooling pump 2,55980,0.4937596471885336,0,0.0,0
+hospital,Return temperature,24,0.0003633720930232558,8184,0.12390988372093023,0
+hospital,Supply air temperature,0,0.0,24,0.0003633720930232558,0
+hospital,Heat Exchanger,28416,0.43023255813953487,0,0.0,0
+hospital,Heating supply temperature,28416,0.43023255813953487,0,0.0,0
+hospital,Cooling supply temperature,37632,0.5697674418604651,0,0.0,0
+hospital,cooling pump,37632,0.5697674418604651,0,0.0,0
+office,Heating supply temperature1,73412,0.4182257366178247,0,0.0,0
+office,Heating supply temperature2,73412,0.4182257366178247,0,0.0,0
+office,Total heating pump,73412,0.4182257366178247,0,0.0,0
+office,Heating pump 1,73412,0.4182257366178247,0,0.0,0
+office,Heating pump 2,73412,0.4182257366178247,0,0.0,0
+office,Heating pump 3,73412,0.4182257366178247,0,0.0,0
+office,Cooling supply temperature 1,102120,0.5817742633821753,0,0.0,0
+office,Cooling supply temperature 2,102120,0.5817742633821753,0,0.0,0
+office,Total cooling pump,102120,0.5817742633821753,0,0.0,0
+office,cooling pump 1,102120,0.5817742633821753,0,0.0,0
+office,cooling pump 2,102120,0.5817742633821753,0,0.0,0
+office,cooling pump 3,102120,0.5817742633821753,0,0.0,0
+office,cooling pump 4,102120,0.5817742633821753,0,0.0,0

@@ -37,8 +37,22 @@ python -m pip install -e ".[dev]"
 The source CSV files are not committed to Git. Download or place them locally
 as described in [data/raw/README.md](data/raw/README.md).
 
+## Run the Phase 1 audit
+
+After installing the package, run the audit against the local source directory:
+
+```bash
+audit_multibuilding_ahu \
+  --data-root /Users/mili/Downloads/27147678 \
+  --output-dir results/audit
+```
+
+The command writes `audit_manifest.json`, `audit_summary.md`,
+`audit_columns.csv`, `audit_missingness.csv`, and `audit_label_counts.csv`.
+
 ## Repository status
 
-Phase 0 is complete when provenance, checksums, project boundaries, and the
-raw-data location have been recorded. See [docs/project_plan.md](docs/project_plan.md)
-for the staged implementation plan.
+Phase 0 and the Phase 1 raw-data audit are complete. The next gate is the
+data-quality and label policy; no modelling should begin until that policy is
+frozen. See [docs/project_plan.md](docs/project_plan.md) for the staged
+implementation plan.
