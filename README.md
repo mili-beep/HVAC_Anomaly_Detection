@@ -134,11 +134,27 @@ missingness, operating modes, feature families, shortcut flags, hourly and
 monthly profiles, and normal-operation PCA. The notebook is a presentation
 layer; the tested Python modules remain the source of truth.
 
+## Create evaluation splits
+
+Before any model is trained, create the frozen evaluation assignments:
+
+```bash
+create_evaluation_splits \
+  --input-file data/interim/canonical/canonical_ahu.csv \
+  --output-dir data/interim/evaluation_splits \
+  --config configs/evaluation_splits.yaml
+```
+
+This writes one assignment table, manifest and readable summary. The table
+contains four named designs: AHU-held-out, chronological, building-held-out
+transfer, and nested grouped validation. Later models must use these saved
+assignments rather than creating new random row splits.
+
 ## Repository status
 
 Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
 the Phase 3 canonical ingestion adapter, the Phase 4 auditorium cleaning
-policy, the Phase 5 auditorium feature policy, and auditorium normal-operation
-pattern discovery are complete. The next gate is split/evaluation design; no
-modelling should begin until those choices are frozen. See
+policy, the Phase 5 auditorium feature policy, auditorium normal-operation
+pattern discovery, and the evaluation split implementation are complete.
+Model training should use the saved split assignments. See
 [docs/project_plan.md](docs/project_plan.md) for the staged implementation plan.

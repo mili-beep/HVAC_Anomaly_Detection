@@ -31,6 +31,7 @@ ingest_multibuilding_ahu = "ahu_fdd.multibuilding:main"
 clean_auditorium_ahu = "ahu_fdd.cleaning:main"
 engineer_auditorium_features = "ahu_fdd.features:main"
 discover_auditorium_patterns = "ahu_fdd.patterns:main"
+create_evaluation_splits = "ahu_fdd.splits:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ahu_fdd"]

@@ -73,6 +73,15 @@ placeholders are retained with explicit quality flags for the Phase 4 policy.
 The canonical adapter uses building-specific source mappings, so later
 cleaning and modelling code does not need separate parsing implementations.
 
+## 2026-10-27 — Frozen evaluation split designs
+
+The project uses four saved evaluation designs rather than a random row split:
+AHU-held-out within-building, chronological, building-held-out transfer, and
+nested grouped validation. The `create_evaluation_splits` command writes one
+row-assignment table, a manifest and a human-readable summary. Detection and
+diagnosis experiments must consume these assignments so the statistical
+baseline and XGBoost are compared on identical folds.
+
 ## 2026-10-27 — Phase 4 auditorium cleaning
 
 Auditorium heating and cooling missingness is treated as structural operating

@@ -1,0 +1,8 @@
+schema_version: 1
+
+# These are evaluation-design settings, not model hyperparameters.
+random_state: 42
+test_fraction: 0.20
+validation_fraction: 0.20
+inner_validation_fraction: 0.20
+outer_folds: 5

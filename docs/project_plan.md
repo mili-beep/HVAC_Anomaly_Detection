@@ -324,7 +324,7 @@ Build features that are useful for AHU diagnosis while measuring shortcut depend
 
 No feature is promoted to the headline model without a documented physical or operational justification.
 
-## Phase 6 — Evaluation protocol and split implementation
+## Evaluation split implementation
 
 ### Objective
 

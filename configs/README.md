@@ -8,3 +8,7 @@ same sensor list from drifting across phase-specific files.
 `multibuilding_ahu.yaml` remains separate because it describes source-to-
 canonical mappings for all three buildings rather than the auditorium policy.
 Future building policies should follow the same one-file-per-building pattern.
+
+`evaluation_splits.yaml` contains only evaluation-design settings. It is used
+by `create_evaluation_splits` to freeze the four leakage-safe split designs;
+it does not contain model hyperparameters.
