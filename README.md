@@ -150,12 +150,13 @@ contains four named designs: AHU-held-out, chronological, building-held-out
 transfer, and nested grouped validation. Later models must use these saved
 assignments rather than creating new random row splits.
 
-## Evaluate the five detection baselines
+## Evaluate the three headline detection baselines
 
-The baseline comparison uses the frozen assignments and evaluates five
-complementary questions: a majority-class lower bound, a transparent normal
-envelope rule, missingness-only evidence, temperature-only evidence, and
-actuator/pump-only evidence.
+The baseline comparison uses the frozen assignments and evaluates three
+complementary references: a majority-class lower bound, a transparent normal
+envelope rule, and actuator/pump-only evidence. Missingness remains visible in
+the audit and operational-context sensitivity results rather than being used as
+a headline detector.
 
 ```bash
 evaluate_detection_baselines \
@@ -173,11 +174,11 @@ labels or test values are used to choose thresholds.
 
 After the baseline and detection commands have completed, open
 `notebooks/02_detection_results.ipynb`. It loads the saved metrics and creates
-report-ready tables and Matplotlib figures for all five baselines, all four
-detection models, physical-versus-operational feature variants, every frozen
-split design, false-positive rates, and LSTM scoring coverage. It does not
-retrain models; it is a reproducible presentation layer over the saved
-results.
+report-ready tables and Matplotlib figures for the three headline baselines,
+all four detection models, the physical-signal headline variant, one XGBoost
+physical-versus-operational comparison, the three principal split designs,
+false-positive rates, and LSTM scoring coverage. It does not retrain models; it
+is a reproducible presentation layer over the saved results.
 
 ## Run detection experiments
 
@@ -204,6 +205,7 @@ Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
 the Phase 3 canonical ingestion adapter, the Phase 4 auditorium cleaning
 policy, the Phase 5 auditorium feature policy, auditorium normal-operation
 pattern discovery, and the evaluation split implementation are complete.
-The five detection baselines and the first detection experiment runner are
-now implemented; all model training uses the saved split assignments. See
+The three headline detection baselines and the first detection experiment
+runner are now implemented; all model training uses the saved split
+assignments. See
 [docs/project_plan.md](docs/project_plan.md) for the staged implementation plan.

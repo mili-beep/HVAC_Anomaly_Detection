@@ -47,6 +47,11 @@ def _frame() -> pd.DataFrame:
 
 
 def test_baseline_run_writes_fold_and_summary_outputs(tmp_path: Path) -> None:
+    assert BASELINE_NAMES == (
+        "majority_class",
+        "normal_envelope_rule",
+        "actuator_pump_only",
+    )
     data_file = tmp_path / "canonical.csv"
     splits_dir = tmp_path / "splits"
     output_dir = tmp_path / "baselines"

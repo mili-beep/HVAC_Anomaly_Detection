@@ -371,15 +371,17 @@ Establish whether machine learning adds value beyond simple alternatives.
 
 1. Majority-class predictor.
 2. Simple normal-envelope rule.
-3. Missingness-only classifier.
-4. Temperature-only classifier.
-5. Actuator/pump-only classifier.
+3. Actuator/pump-only classifier.
 
 The published-label distribution baseline is not included as a separate run:
 for this binary task it duplicates the information in the majority-class
-predictor and adds no operationally distinct comparison.
+predictor and adds no operationally distinct comparison. Missingness-only and
+temperature-only diagnostics are retained conceptually in the audit and
+feature-variant discussion, but are not headline detection baselines.
 
-These baselines are essential because a high ML score is not meaningful if a missing-value rule achieves the same result.
+These baselines are essential because a high ML score is not meaningful if a
+transparent physical rule achieves the same result. Missingness remains a
+quality-control signal rather than a headline detector.
 
 ### Acceptance gate
 

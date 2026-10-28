@@ -26,8 +26,6 @@ from sklearn.preprocessing import StandardScaler
 BASELINE_NAMES = (
     "majority_class",
     "normal_envelope_rule",
-    "missingness_only",
-    "temperature_only",
     "actuator_pump_only",
 )
 
@@ -92,17 +90,12 @@ def _fit_logistic(
     test: pd.DataFrame,
     y_train: pd.Series,
     columns: list[str],
-    missingness: bool = False,
 ) -> np.ndarray:
-    if missingness:
-        train_matrix = _numeric(train, columns).isna().astype(float)
-        test_matrix = _numeric(test, columns).isna().astype(float)
-    else:
-        usable = _usable_columns(train, columns)
-        if not usable:
-            return _majority_prediction(y_train, len(test))
-        train_matrix = _numeric(train, usable)
-        test_matrix = _numeric(test, usable)
+    usable = _usable_columns(train, columns)
+    if not usable:
+        return _majority_prediction(y_train, len(test))
+    train_matrix = _numeric(train, usable)
+    test_matrix = _numeric(test, usable)
     usable = [column for column in train_matrix if train_matrix[column].nunique() > 1]
     if not usable or y_train.nunique() < 2:
         return _majority_prediction(y_train, len(test))
@@ -238,12 +231,6 @@ def run_baselines(
             "majority_class": _majority_prediction(y_train, len(test)),
             "normal_envelope_rule": _normal_envelope_prediction(
                 train, test, y_train, all_sensors, config
-            ),
-            "missingness_only": _fit_logistic(
-                train, test, y_train, all_sensors, missingness=True
-            ),
-            "temperature_only": _fit_logistic(
-                train, test, y_train, list(groups["temperature"])
             ),
             "actuator_pump_only": _fit_logistic(
                 train, test, y_train, list(groups["actuator_pump"])

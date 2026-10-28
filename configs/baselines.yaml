@@ -1,16 +1,30 @@
 schema_version: 1
 normal_label: Normal condition
 
-# These groups are diagnostic comparisons, not headline model features.
+# These groups define the three headline baselines. The normal-envelope rule
+# uses all listed physical sensors; actuator_pump is the focused logistic
+# comparison.
 feature_groups:
-  temperature:
+  normal_envelope:
     - setpoint_temperature
     - return_temperature
     - supply_air_temperature
+    - supply_fan
+    - valve_position
+    - heating_exchanger
     - heating_supply_temperature_1
     - heating_supply_temperature_2
+    - heating_pump_total
+    - heating_pump_1
+    - heating_pump_2
+    - heating_pump_3
     - cooling_supply_temperature_1
     - cooling_supply_temperature_2
+    - cooling_pump_total
+    - cooling_pump_1
+    - cooling_pump_2
+    - cooling_pump_3
+    - cooling_pump_4
   actuator_pump:
     - supply_fan
     - valve_position
