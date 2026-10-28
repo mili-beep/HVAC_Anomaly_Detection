@@ -500,10 +500,11 @@ Make the analysis understandable without duplicating the implementation.
 
 ### Notebooks
 
-1. `01_data_audit_and_normal_patterns.ipynb`
-2. `02_detection_experiments.ipynb`
-3. `03_diagnosis_results.ipynb`
-4. `04_operational_outputs.ipynb`
+1. `01_auditorium_pipeline_walkthrough.ipynb`
+2. `02_detection_results.ipynb`
+3. `03_building_detection_results.ipynb`
+4. `04_diagnosis_results.ipynb`
+5. `05_operational_outputs.ipynb`
 
 The notebooks should call the package code. They should not contain a second hidden implementation.
 

@@ -1,4 +1,4 @@
-"""Build the four presentation notebooks from the saved project artefacts."""
+"""Build the presentation notebooks from the saved project artefacts."""
 
 from __future__ import annotations
 
@@ -207,164 +207,143 @@ def notebook_02() -> None:
     cells = [
         markdown(
             """
-            # 02 — Detection experiments and generalisation
+            # 02 — Pooled detection results
 
-            This notebook presents the binary normal-versus-fault detection evidence. It does not retrain models. It compares the earlier pooled results with the quality-controlled rerun, shows the duplicate-policy sensitivity, and then reports the separate auditorium, hospital and office models.
+            This notebook reports only the pooled binary normal-versus-fault experiment. It uses the quality-controlled table with ambiguous duplicate keys excluded as the headline dataset, and the retained-duplicate table only as a pre-declared XGBoost sensitivity check. It does not retrain models.
 
-            The default headline feature track is the physical-signal variant. Operational-context features appear only once as a secondary sensitivity comparison in the earlier pooled results. The saved `ahu_held_out` assignment is intentionally excluded because it is currently disabled for pooled headline modelling; the separate `building_ahu_held_out` building-specific experiment remains in scope.
+            The three active pooled split interpretations are chronological, building-held-out and nested-grouped. The pooled AHU-held-out assignment remains saved for traceability but is disabled and is not used here. Individual auditorium, hospital and office results are reported in Notebook 03.
             """
         ),
         code(COMMON),
-        markdown("## 1. Load saved detection artefacts"),
+        markdown("## 1. Load the matched pooled artefacts"),
         code(
             """
-BASELINE = ROOT / 'results' / 'baselines'
-OLD = ROOT / 'results' / 'detection'
+BASELINE = ROOT / 'results' / 'quality_controlled' / 'exclude_ambiguous_keys' / 'baselines'
 QUALITY_MAIN = ROOT / 'results' / 'quality_controlled' / 'exclude_ambiguous_keys'
 QUALITY_RETAIN = ROOT / 'results' / 'quality_controlled' / 'retain_flagged_keys'
-BUILDING = ROOT / 'results' / 'building_specific'
 ACTIVE_DESIGNS = ['chronological', 'building_held_out', 'nested_grouped']
 require(
-    BASELINE / 'baseline_metrics_summary.csv', OLD / 'detection_metrics_summary.csv',
+    BASELINE / 'baseline_metrics_summary.csv',
     QUALITY_MAIN / 'quality_detection_metrics_by_fold.csv', QUALITY_RETAIN / 'quality_detection_metrics_by_fold.csv',
-    BUILDING / 'building_detection_validation_metrics.csv', BUILDING / 'building_detection_test_metrics.csv',
 )
 baseline = pd.read_csv(BASELINE / 'baseline_metrics_summary.csv')
-old_detection = pd.read_csv(OLD / 'detection_metrics_summary.csv')
 quality_main = pd.read_csv(QUALITY_MAIN / 'quality_detection_metrics_by_fold.csv')
 quality_retain = pd.read_csv(QUALITY_RETAIN / 'quality_detection_metrics_by_fold.csv')
-building_validation = pd.read_csv(BUILDING / 'building_detection_validation_metrics.csv')
-building_test = pd.read_csv(BUILDING / 'building_detection_test_metrics.csv')
-# ``ahu_held_out`` remains in the assignment artefact for traceability, but is
-# disabled for current pooled headline modelling. Building-specific held-out
-# results below are a separate within-building experiment.
 baseline = baseline[baseline['design'].isin(ACTIVE_DESIGNS)].copy()
-old_detection = old_detection[old_detection['design'].isin(ACTIVE_DESIGNS)].copy()
 quality_main = quality_main[quality_main['design'].isin(ACTIVE_DESIGNS)].copy()
 quality_retain = quality_retain[quality_retain['design'].isin(ACTIVE_DESIGNS)].copy()
-print('Earlier pooled rows:', len(old_detection))
-print('Quality-controlled fold rows:', len(quality_main))
-print('Building-specific validation rows:', len(building_validation))
+print('Headline deduplicated rows:', int(quality_main['scored_rows'].max()))
+print('Headline quality-controlled fold rows:', len(quality_main))
+print('Retained-duplicate fold rows:', len(quality_retain))
 """
         ),
         markdown("## 2. Baseline comparison"),
         code(
             """
-display(baseline.round(3))
+display(baseline[['design', 'baseline', 'folds', 'mean_f1', 'mean_balanced_accuracy', 'mean_false_positive_rate']].round(3))
 """
         ),
         code(
             """
-baseline_plot = baseline.sort_values('mean_f1')
-fig, ax = plt.subplots(figsize=(9, 4.5), constrained_layout=True)
-ax.barh(baseline_plot['baseline'], baseline_plot['mean_f1'], color=COLORS['accent'])
-ax.set_xlim(0, 1)
-ax.set_xlabel('Mean F1')
-ax.set_title('Transparent binary baselines')
-for index, value in enumerate(baseline_plot['mean_f1']):
-    ax.text(value + 0.01, index, f'{value:.3f}', va='center')
+fig, axes = plt.subplots(1, 3, figsize=(16, 5), sharex=True, constrained_layout=True)
+for ax, design in zip(axes, ACTIVE_DESIGNS):
+    plot_data = baseline[baseline['design'].eq(design)].sort_values('mean_f1')
+    ax.barh(plot_data['baseline'], plot_data['mean_f1'], color=COLORS['accent'])
+    ax.set_title(design.replace('_', ' ').title())
+    ax.set_xlim(0, 1)
+    ax.set_xlabel('Mean F1')
+    for index, value in enumerate(plot_data['mean_f1']):
+        ax.text(value + 0.02, index, f'{value:.3f}', va='center', fontsize=9)
+fig.suptitle('Matched pooled baseline performance by split design')
 plt.show()
 """
         ),
         markdown(
             """
-            The baselines are references, not competing deployment products. The normal-range rule is transparent and interpretable; the majority class is a lower bound; the actuator/pump-only baseline tests whether a small control subset is sufficient.
+            These baselines are evaluated on the same deduplicated table and active split assignments as the headline models. The majority classifier is a lower bound, the normal-range rule is transparent, and the actuator/pump-only baseline tests whether a small control subset is sufficient. The split-specific panels avoid treating different generalisation questions as one interchangeable score.
             """
         ),
-        markdown("## 3. Earlier pooled XGBoost versus the quality-controlled rerun"),
+        markdown("## 3. Main pooled model comparison"),
         code(
             """
-old_xgb = old_detection[(old_detection['model'] == 'xgboost') & (old_detection['variant'] == 'physical_signal')].copy()
-old_xgb = old_xgb[['design', 'mean_f1', 'mean_balanced_accuracy', 'mean_false_positive_rate']].rename(columns={
-    'mean_f1': 'earlier_f1', 'mean_balanced_accuracy': 'earlier_balanced_accuracy', 'mean_false_positive_rate': 'earlier_fpr'
-})
-new_xgb = quality_main[quality_main['model'] == 'xgboost'].groupby('design', as_index=False).agg(
-    quality_f1=('f1', 'mean'), quality_balanced_accuracy=('balanced_accuracy', 'mean'), quality_fpr=('false_positive_rate', 'mean')
+model_summary = quality_main.groupby(['design', 'model'], as_index=False).agg(
+    folds=('fold', 'nunique'), mean_f1=('f1', 'mean'), mean_macro_f1=('macro_f1', 'mean'),
+    mean_balanced_accuracy=('balanced_accuracy', 'mean'), mean_precision=('precision', 'mean'),
+    mean_recall=('recall', 'mean'), mean_false_positive_rate=('false_positive_rate', 'mean'),
+    mean_coverage=('coverage', 'mean')
 )
-comparison = old_xgb.merge(new_xgb, on='design', how='outer')
-comparison['f1_change'] = comparison['quality_f1'] - comparison['earlier_f1']
-display(comparison.round(3))
+display(model_summary.round(3))
 """
         ),
         code(
             """
-plot_data = comparison.sort_values('earlier_f1')
-positions = np.arange(len(plot_data))
-fig, ax = plt.subplots(figsize=(10, 5), constrained_layout=True)
-ax.barh(positions - 0.18, plot_data['earlier_f1'], height=0.35, label='Earlier pooled run', color='#8ecae6')
-ax.barh(positions + 0.18, plot_data['quality_f1'], height=0.35, label='Quality-controlled run', color=COLORS['dark'])
-ax.set_yticks(positions, plot_data['design'])
-ax.set_xlim(0, 1)
-ax.set_xlabel('Mean F1')
-ax.set_title('Physical-signal XGBoost: protocol comparison')
-ax.legend()
+models = ['normal_range_rule', 'isolation_forest', 'xgboost', 'lstm_autoencoder']
+fig, axes = plt.subplots(1, 3, figsize=(16, 5), sharey=True, constrained_layout=True)
+for ax, design in zip(axes, ACTIVE_DESIGNS):
+    plot_data = model_summary[(model_summary['design'].eq(design)) & (model_summary['model'].isin(models))]
+    plot_data = plot_data.set_index('model').reindex(models).reset_index()
+    ax.barh(plot_data['model'], plot_data['mean_f1'], color=COLORS['dark'])
+    ax.set_title(design.replace('_', ' ').title())
+    ax.set_xlim(0, 1)
+    ax.set_xlabel('Mean F1')
+    for index, value in enumerate(plot_data['mean_f1']):
+        if pd.notna(value):
+            ax.text(value + 0.02, index, f'{value:.3f}', va='center', fontsize=9)
+axes[0].set_ylabel('Model')
+fig.suptitle('Pooled detection models on the deduplicated dataset')
 plt.show()
 """
         ),
         markdown(
             """
-            This comparison is not a claim that the two runs are identical. The new run uses cleaned data, 88 declared physical predictors, duplicate-aware temporal processing and the quality-controlled split table. It is therefore the more defensible headline result. The main change is the harder hospital building-held-out fold.
+            XGBoost is the principal supervised model. Isolation Forest and the LSTM are retained as methodological comparisons, while the normal-range rule provides the transparent statistical reference. LSTM coverage is shown explicitly because rows without a complete contiguous sequence are not silently scored as normal.
             """
         ),
-        markdown("## 4. Duplicate-policy sensitivity"),
+        markdown("## 4. XGBoost duplicate-policy sensitivity"),
         code(
             """
 def xgb_summary(frame, policy):
-    return frame[frame['model'].eq('xgboost')].groupby('design', as_index=False).agg(
-        policy=('duplicate_policy', 'first'), mean_f1=('f1', 'mean'), mean_fpr=('false_positive_rate', 'mean')
+    result = frame[frame['model'].eq('xgboost')].groupby('design', as_index=False).agg(
+        mean_f1=('f1', 'mean'), mean_balanced_accuracy=('balanced_accuracy', 'mean'),
+        mean_false_positive_rate=('false_positive_rate', 'mean')
     )
-duplicate_comparison = pd.concat([xgb_summary(quality_main, 'exclude'), xgb_summary(quality_retain, 'retain')], ignore_index=True)
+    result['policy'] = policy
+    return result
+duplicate_comparison = pd.concat([
+    xgb_summary(quality_main, 'duplicates excluded'),
+    xgb_summary(quality_retain, 'duplicates retained and flagged'),
+], ignore_index=True)
 display(duplicate_comparison.round(3))
 """
         ),
         code(
             """
-fig, ax = plt.subplots(figsize=(10, 5), constrained_layout=True)
+fig, ax = plt.subplots(figsize=(11, 5), constrained_layout=True)
 for policy, group in duplicate_comparison.groupby('policy'):
     ax.plot(group['design'], group['mean_f1'], marker='o', linewidth=2, label=policy)
 ax.set_ylim(0, 1)
 ax.set_ylabel('Mean F1')
-ax.set_title('XGBoost sensitivity to duplicate policy')
+ax.set_title('XGBoost sensitivity to the duplicate policy')
 ax.tick_params(axis='x', rotation=20)
-ax.legend(title='Policy')
+ax.legend()
 plt.show()
 """
         ),
-        markdown("## 5. Independent building models"),
-        code(
-            """
-display(building_test[['building', 'design', 'model', 'f1', 'balanced_accuracy', 'false_positive_rate', 'coverage']].round(3))
-"""
-        ),
-        code(
-            """
-building_plot = building_test.copy()
-building_plot['label'] = building_plot['building'] + ' / ' + building_plot['design'].str.replace('building_', '', regex=False)
-building_plot = building_plot.sort_values('f1')
-fig, ax = plt.subplots(figsize=(10, 5), constrained_layout=True)
-ax.barh(building_plot['label'], building_plot['f1'], color=[COLORS['fault'] if value < 0.7 else COLORS['dark'] for value in building_plot['f1']])
-ax.set_xlim(0, 1)
-ax.set_xlabel('Test F1 of selected model')
-ax.set_title('Building-specific held-out test results')
-for index, value in enumerate(building_plot['f1']):
-    ax.text(value + 0.01, index, f'{value:.3f}', va='center')
-plt.show()
-"""
-        ),
+        markdown("## 5. Interpretation of pooled results"),
         markdown(
             """
-            **Interpretation.** XGBoost was selected for all six building/design combinations. Auditorium and office are highly consistent. Hospital chronological performance is lower but usable as a research result. Hospital AHU-held-out performance is poor, showing that a model trained on some hospital AHUs does not automatically generalise to unseen hospital AHUs.
+            The deduplicated run is the headline pooled result. The retained-duplicate run is a sensitivity analysis, not a second opportunity to select a more favourable model. The results describe performance under these labelled historical buildings and split designs; they do not establish production performance without target-building calibration.
             """
         ),
-        markdown("## 6. What the experiments do and do not establish"),
+        markdown("## 6. What this notebook does and does not establish"),
         code(
             """
 conclusions = pd.DataFrame([
-    ['Within-building grouped evaluation', 'Strong XGBoost results', 'Useful evidence for the labelled buildings and split design'],
-    ['Chronological evaluation', 'Strong for auditorium/office; lower for hospital', 'Temporal drift and building-specific calibration matter'],
-    ['Unseen-building evaluation', 'Much weaker, especially hospital', 'Cross-building deployment cannot be assumed'],
-    ['Duplicate sensitivity', 'Small change between policies', 'Headline pooled result is not driven by duplicate rows'],
-], columns=['question', 'observed result', 'responsible interpretation'])
+    ['Dataset policy', 'Deduplicated table is the headline; retained duplicates are sensitivity only', 'The duplicate decision is visible and not chosen after inspecting scores'],
+    ['Model selection', 'XGBoost is the main supervised comparison', 'Other models remain useful as methodological references'],
+    ['Generalisation', 'Scores vary by split design', 'Temporal and cross-building transfer should not be conflated'],
+    ['Deployment', 'Historical test evidence only', 'Target-building calibration and monitoring are still required'],
+], columns=['question', 'observed result', 'responsible_interpretation'])
 display(conclusions)
 """
         ),
@@ -376,7 +355,125 @@ def notebook_03() -> None:
     cells = [
         markdown(
             """
-            # 03 — Exact fault-type diagnosis
+            # 03 — Individual building detection results
+
+            This notebook reports independent auditorium, hospital and office detection experiments. Each building uses only its own rows, AHU-group and chronological assignments, and training-fold preprocessing. Models are selected from validation performance and evaluated once on held-out test rows.
+
+            The normal-range rule is the transparent within-building reference included in the model runner. The pooled majority-class and actuator/pump-only baselines are reported in Notebook 02 because they are pooled reference baselines.
+            """
+        ),
+        code(COMMON),
+        markdown("## 1. Load the independent building artefacts"),
+        code(
+            """
+RESULTS = ROOT / 'results' / 'building_specific'
+CLEANED = ROOT / 'data' / 'interim' / 'cleaned' / 'cleaned_ahu.csv'
+require(
+    RESULTS / 'building_detection_manifest.json',
+    RESULTS / 'building_detection_validation_metrics.csv',
+    RESULTS / 'building_detection_test_metrics.csv',
+    RESULTS / 'building_detection_selected_models.csv',
+    CLEANED,
+)
+manifest = read_json(RESULTS / 'building_detection_manifest.json')
+validation = pd.read_csv(RESULTS / 'building_detection_validation_metrics.csv')
+test = pd.read_csv(RESULTS / 'building_detection_test_metrics.csv')
+selected = pd.read_csv(RESULTS / 'building_detection_selected_models.csv')
+cleaned = pd.read_csv(CLEANED, low_memory=False)
+print('Buildings:', manifest.get('buildings'))
+print('Models requested:', manifest.get('models_requested'))
+print('Selection metric:', manifest.get('selection_metric'))
+"""
+        ),
+        markdown("## 2. Building support and label balance"),
+        code(
+            """
+is_normal = cleaned['label'].astype('string').str.contains('Normal', case=False, na=False)
+support = cleaned.assign(is_normal=is_normal).groupby('building').agg(
+    rows=('building', 'size'),
+    ahus=('ahu', 'nunique'),
+    normal_rows=('is_normal', 'sum'),
+    fault_rows=('is_normal', lambda values: int((~values).sum())),
+).reset_index()
+display(support)
+"""
+        ),
+        markdown("## 3. Model validation comparison"),
+        code(
+            """
+validation_view = validation[['building', 'design', 'fold', 'model', 'f1', 'balanced_accuracy', 'false_positive_rate', 'coverage']]
+display(validation_view.sort_values(['building', 'design', 'f1'], ascending=[True, True, False]).round(3))
+"""
+        ),
+        code(
+            """
+for building in ['auditorium', 'office', 'hospital']:
+    plot_data = validation[validation['building'].eq(building)].groupby('model', as_index=False).agg(
+        mean_f1=('f1', 'mean')
+    ).sort_values('mean_f1')
+    fig, ax = plt.subplots(figsize=(8, 4), constrained_layout=True)
+    ax.barh(plot_data['model'], plot_data['mean_f1'], color=COLORS['dark'])
+    ax.set_xlim(0, 1)
+    ax.set_xlabel('Mean validation F1')
+    ax.set_title(f'{building.title()} — model selection evidence')
+    for index, value in enumerate(plot_data['mean_f1']):
+        ax.text(value + 0.02, index, f'{value:.3f}', va='center')
+    plt.show()
+"""
+        ),
+        markdown(
+            """
+            Validation performance is used to select a model separately for each building and split design. Test performance is not used for selection, so the final test rows remain an unbiased held-out estimate under the declared protocol.
+            """
+        ),
+        markdown("## 4. Selected model and final held-out test results"),
+        code(
+            """
+display(selected.round(3))
+test_view = test[['building', 'design', 'fold', 'model', 'f1', 'balanced_accuracy', 'precision', 'recall', 'false_positive_rate', 'coverage']]
+display(test_view.round(3))
+"""
+        ),
+        code(
+            """
+test_plot = test.copy()
+test_plot['evaluation'] = test_plot['building'] + ' / ' + test_plot['design'].str.replace('building_', '', regex=False)
+test_plot = test_plot.sort_values('f1')
+fig, ax = plt.subplots(figsize=(10, 5), constrained_layout=True)
+ax.barh(test_plot['evaluation'], test_plot['f1'], color=[COLORS['fault'] if value < 0.7 else COLORS['dark'] for value in test_plot['f1']])
+ax.set_xlim(0, 1)
+ax.set_xlabel('Held-out test F1')
+ax.set_title('Final selected-model performance by building')
+for index, value in enumerate(test_plot['f1']):
+    ax.text(value + 0.02, index, f'{value:.3f}', va='center')
+plt.show()
+"""
+        ),
+        markdown("## 5. Building-specific conclusions"),
+        code(
+            """
+interpretation = pd.DataFrame([
+    ['Auditorium', 'XGBoost is selected for both designs and performs strongly on the held-out tests.', 'Evidence is specific to the auditorium data and split policies.'],
+    ['Office', 'XGBoost is selected for both designs and performs strongly on the held-out tests.', 'Local performance does not prove transfer to another building.'],
+    ['Hospital', 'The chronological result is materially stronger than the unseen-AHU result.', 'Hospital sensor availability and operating differences require local calibration.'],
+], columns=['building', 'observed result', 'qualification'])
+display(interpretation)
+"""
+        ),
+        markdown(
+            """
+            These are independent building models, not one pooled model evaluated three times. Their purpose is to test whether local calibration improves reliability and whether one building's data is masking another building's weaknesses. They complement, rather than replace, the pooled comparison in Notebook 02.
+            """
+        ),
+    ]
+    save("03_building_detection_results.ipynb", cells)
+
+
+def notebook_04_diagnosis() -> None:
+    cells = [
+        markdown(
+            """
+            # 04 — Exact fault-type diagnosis
 
             This notebook presents the saved multiclass diagnosis results. It does not retrain a model. Binary detection and fault-type diagnosis are separate tasks: first the system asks whether operation is normal or faulty; diagnosis then predicts the original fault label for fault-labelled rows.
 
@@ -481,10 +578,10 @@ display(limitations)
 """
         ),
     ]
-    save("03_diagnosis_results.ipynb", cells)
+    save("04_diagnosis_results.ipynb", cells)
 
 
-def notebook_04() -> None:
+def notebook_05_operational() -> None:
     cells = [
         markdown(
             """
@@ -587,7 +684,7 @@ display(deliverables)
             """
         ),
     ]
-    save("04_operational_outputs.ipynb", cells)
+    save("05_operational_outputs.ipynb", cells)
 
 
 if __name__ == "__main__":
@@ -595,5 +692,6 @@ if __name__ == "__main__":
     notebook_01()
     notebook_02()
     notebook_03()
-    notebook_04()
-    print(f"Wrote four notebooks to {NOTEBOOK_DIR}")
+    notebook_04_diagnosis()
+    notebook_05_operational()
+    print(f"Wrote notebooks to {NOTEBOOK_DIR}")

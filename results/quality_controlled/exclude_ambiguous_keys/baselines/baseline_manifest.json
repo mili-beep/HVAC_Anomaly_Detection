@@ -1,0 +1,26 @@
+{
+  "baseline_names": [
+    "majority_class",
+    "normal_range_rule",
+    "actuator_pump_only"
+  ],
+  "config_file": "/Users/mili/Desktop/IRPN/configs/baselines.yaml",
+  "data_file": "/Users/mili/Desktop/IRPN/data/interim/cleaned/cleaned_ahu.csv",
+  "disabled_modeling_designs": [
+    "ahu_held_out"
+  ],
+  "generated_at": "2026-10-29T00:08:58.344268+10:30",
+  "modeling_designs": [
+    "chronological",
+    "building_held_out",
+    "nested_grouped"
+  ],
+  "normal_label": "Normal condition",
+  "output_files": {
+    "by_fold": "results/quality_controlled/exclude_ambiguous_keys/baselines/baseline_metrics_by_fold.csv",
+    "summary": "results/quality_controlled/exclude_ambiguous_keys/baselines/baseline_metrics_summary.csv"
+  },
+  "row_count": 354587,
+  "schema_version": 1,
+  "splits_file": "/Users/mili/Desktop/IRPN/data/interim/quality_splits/exclude_ambiguous_keys/evaluation_splits.csv"
+}

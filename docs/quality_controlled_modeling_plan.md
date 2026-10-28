@@ -129,8 +129,9 @@ where class support is sufficient.
 
 ## Step 11 — Update notebooks
 
-Notebook 2 presents pooled, building-specific and duplicate-sensitivity results.
-Notebook 3 presents final diagnosis results. Notebook 4 presents only final
+Notebook 2 presents pooled baselines, models and duplicate-sensitivity results.
+Notebook 3 presents independent auditorium, hospital and office models.
+Notebook 4 presents final diagnosis results. Notebook 5 presents only final
 operational outputs.
 
 ## Step 12 — Validate and clean up
