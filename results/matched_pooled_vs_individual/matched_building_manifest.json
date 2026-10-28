@@ -1,0 +1,39 @@
+{
+  "buildings": [
+    "auditorium",
+    "hospital",
+    "office"
+  ],
+  "config_file": "/Users/mili/Desktop/IRPN/configs/detection.yaml",
+  "data_file": "/Users/mili/Desktop/IRPN/data/interim/cleaned/cleaned_ahu.csv",
+  "designs": [
+    "building_chronological",
+    "building_ahu_held_out"
+  ],
+  "feature_file": "/Users/mili/Desktop/IRPN/data/interim/features/multibuilding_features.csv",
+  "feature_manifest_file": "/Users/mili/Desktop/IRPN/data/interim/features/feature_manifest.json",
+  "feature_set": "project_default_modelling_features",
+  "generated_at": "2026-10-29T00:41:56.063001+10:30",
+  "output_files": {
+    "test_metrics": "results/matched_pooled_vs_individual/matched_building_test_metrics.csv",
+    "test_predictions": "results/matched_pooled_vs_individual/matched_building_test_predictions.csv",
+    "test_row_checks": "results/matched_pooled_vs_individual/matched_building_test_row_checks.csv",
+    "test_summary": "results/matched_pooled_vs_individual/matched_building_test_summary.csv",
+    "validation_metrics": "results/matched_pooled_vs_individual/matched_building_validation_metrics.csv"
+  },
+  "protocol": {
+    "individual": "target-building training rows only; refit on target train plus validation before test",
+    "pooled_adapted": "target-building training rows plus other-building training rows; refit with target validation before test",
+    "pooled_transfer": "other-building training rows only; target building is unseen during training",
+    "test_rows": "identical target-building test row IDs for all three strategies"
+  },
+  "purpose": "Fair comparison of independent and pooled XGBoost models on identical building-specific test rows",
+  "row_count": 354587,
+  "schema_version": 1,
+  "splits_file": "/Users/mili/Desktop/IRPN/data/interim/building_splits/building_splits.csv",
+  "strategies": [
+    "individual_xgboost",
+    "pooled_adapted_xgboost",
+    "pooled_transfer_xgboost"
+  ]
+}

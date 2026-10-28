@@ -18,6 +18,7 @@ results/detection/*
 results/detection_lstm/*
 results/diagnosis/*
 results/figures/*
+results/matched_pooled_vs_individual/matched_building_test_predictions.csv
 
 # Keep directory documentation in the repository.
 !data/raw/README.md
