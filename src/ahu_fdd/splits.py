@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +12,9 @@ import numpy as np
 import pandas as pd
 import yaml
 from sklearn.model_selection import GroupKFold, GroupShuffleSplit
+
+from ahu_fdd.utils import json_safe, write_json
+from ahu_fdd.validation import validate_assignments
 
 REQUIRED_COLUMNS = {"building", "ahu", "timestamp"}
 DESIGN_NAMES = (
@@ -48,22 +50,6 @@ def load_split_config(path: Path) -> dict[str, Any]:
         raise ValueError("outer_folds must be at least two")
     config["outer_folds"] = outer_folds
     return config
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    return str(value)
 
 
 def _prepare_frame(frame: pd.DataFrame) -> pd.DataFrame:
@@ -255,6 +241,7 @@ def create_evaluation_splits(
         _nested_grouped(frame, config),
     ]
     assignments = pd.concat(outputs, ignore_index=True)
+    validate_assignments(assignments, len(frame))
     output_dir.mkdir(parents=True, exist_ok=True)
     output_csv = output_dir / "evaluation_splits.csv"
     assignments.to_csv(output_csv, index=False)
@@ -270,7 +257,7 @@ def create_evaluation_splits(
                 "building_counts": group.groupby("split")["building"].nunique().to_dict(),
             }
         )
-    manifest = _json_safe(
+    manifest = json_safe(
         {
             "schema_version": 1,
             "generated_at": datetime.now().astimezone().isoformat(),
@@ -282,12 +269,17 @@ def create_evaluation_splits(
             "modeling_designs": list(MODELING_DESIGN_NAMES),
             "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
             "keep_duplicate_keys_together": keep_duplicate_keys_together,
+            "validation": {
+                "exact_row_coverage": True,
+                "unique_row_within_design_fold": True,
+                "one_split_per_row": True,
+            },
             "fold_summaries": fold_summaries,
             "output_file": str(output_csv),
         }
     )
     manifest_path = output_dir / "evaluation_split_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest)
     summary_path = output_dir / "evaluation_split_summary.md"
     lines = [
         "# Evaluation split summary",
@@ -341,6 +333,7 @@ def create_building_specific_splits(
             assignments["building_scope"] = building
             outputs.append(assignments)
     assignments = pd.concat(outputs, ignore_index=True)
+    validate_assignments(assignments, len(frame))
     output_dir.mkdir(parents=True, exist_ok=True)
     output_csv = output_dir / "building_splits.csv"
     assignments.to_csv(output_csv, index=False)
@@ -357,7 +350,7 @@ def create_building_specific_splits(
                 "group_counts": group.groupby("split")["group_key"].nunique().to_dict(),
             }
         )
-    manifest = _json_safe(
+    manifest = json_safe(
         {
             "schema_version": 1,
             "generated_at": datetime.now().astimezone().isoformat(),
@@ -365,13 +358,18 @@ def create_building_specific_splits(
             "config_file": str(config_path.expanduser().resolve()),
             "row_count": int(len(frame)),
             "building_designs": list(BUILDING_DESIGN_NAMES),
+            "validation": {
+                "exact_row_coverage_within_building_scope": True,
+                "unique_row_within_building_design_fold": True,
+                "one_split_per_row": True,
+            },
             "buildings": sorted(frame["building"].unique()),
             "fold_summaries": fold_summaries,
             "output_file": str(output_csv),
         }
     )
     manifest_path = output_dir / "building_split_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest)
     lines = [
         "# Building-specific split summary",
         "",

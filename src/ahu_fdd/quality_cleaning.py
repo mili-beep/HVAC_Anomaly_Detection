@@ -5,39 +5,19 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from ahu_fdd.audit import PLACEHOLDER_TOKENS, sha256_file
 from ahu_fdd.multibuilding import load_config
 from ahu_fdd.quality_policy import load_duplicate_policy
+from ahu_fdd.utils import placeholder_mask, sha256_file, write_json
 
 KEY_COLUMNS = ["building", "ahu", "timestamp"]
-
-
-def _placeholder_mask(series: pd.Series) -> pd.Series:
-    values = series.astype("string").str.strip().str.lower()
-    return values.isin(PLACEHOLDER_TOKENS) & series.notna()
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    return str(value)
+IDENTITY_COLUMNS = ["building", "source_row_id"]
 
 
 def _validate_input(frame: pd.DataFrame, sensors: list[str]) -> None:
@@ -70,7 +50,7 @@ def clean_canonical_frame(
         existing_placeholder = cleaned.get(
             f"has_placeholder__{sensor}", pd.Series(False, index=cleaned.index)
         ).fillna(False).astype(bool)
-        placeholder = existing_placeholder | _placeholder_mask(raw)
+        placeholder = existing_placeholder | placeholder_mask(raw)
         invalid_numeric = numeric.isna() & raw.notna() & ~placeholder
         numeric = numeric.mask(nonfinite)
         cleaned[sensor] = numeric
@@ -183,8 +163,7 @@ def clean_multibuilding(
 
     audit_path = output_dir / "cleaning_audit.csv"
     pd.concat(audit_rows, ignore_index=True).to_csv(audit_path, index=False)
-    manifest = _json_safe(
-        {
+    manifest = {
             "schema_version": 1,
             "generated_at": datetime.now().astimezone().isoformat(),
             "input_file": str(input_file.expanduser().resolve()),
@@ -200,11 +179,8 @@ def clean_multibuilding(
                 "fit_scope": "training_fold_only",
             },
         }
-    )
     manifest_path = output_dir / "cleaning_manifest.json"
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    write_json(manifest_path, manifest)
     lines = [
         "# Multibuilding cleaning summary",
         "",
@@ -232,7 +208,7 @@ def _row_changed_mask(frame: pd.DataFrame, sensors: list[str]) -> pd.Series:
         numeric = pd.to_numeric(raw, errors="coerce")
         placeholder = frame.get(
             f"has_placeholder__{sensor}", pd.Series(False, index=frame.index)
-        ).fillna(False).astype(bool) | _placeholder_mask(raw)
+        ).fillna(False).astype(bool) | placeholder_mask(raw)
         nonfinite = numeric.isin([np.inf, -np.inf])
         invalid_numeric = numeric.isna() & raw.notna() & ~placeholder
         changed = changed | placeholder | nonfinite | invalid_numeric
@@ -243,6 +219,157 @@ def _duplicate_counts(frame: pd.DataFrame) -> tuple[int, int]:
     duplicate_mask = frame.duplicated(KEY_COLUMNS, keep=False)
     keys = frame.loc[duplicate_mask, KEY_COLUMNS].drop_duplicates()
     return int(len(keys)), int(duplicate_mask.sum())
+
+
+def _row_value_equal(left: pd.Series, right: pd.Series) -> pd.Series:
+    """Compare common non-numeric fields while treating missing values equally."""
+    left_text = left.astype("string").fillna("<NA>")
+    right_text = right.astype("string").fillna("<NA>")
+    return left_text.eq(right_text)
+
+
+def _compare_cleaned_rows(
+    expected: pd.DataFrame,
+    output: pd.DataFrame,
+    sensors: list[str],
+) -> dict[str, Any]:
+    """Compare retained rows and allow only declared cleaning conversions."""
+    derived_columns = {
+        "missing_sensor_count",
+        "has_missing_sensor",
+        "placeholder_sensor_count",
+        "has_placeholder",
+        "duplicate_ahu_timestamp",
+    }
+    derived_columns.update(
+        flag
+        for sensor in sensors
+        for flag in (f"is_missing__{sensor}", f"has_placeholder__{sensor}")
+    )
+    errors: list[str] = []
+    if expected[IDENTITY_COLUMNS].duplicated().any():
+        errors.append("input contains duplicate building/source_row_id identities")
+    if output[IDENTITY_COLUMNS].duplicated().any():
+        errors.append("output contains duplicate building/source_row_id identities")
+    expected_ids = set(map(tuple, expected[IDENTITY_COLUMNS].to_numpy()))
+    output_ids = set(map(tuple, output[IDENTITY_COLUMNS].to_numpy()))
+    if expected_ids != output_ids:
+        errors.append("output source-row identities do not match the declared policy")
+    if errors:
+        return {
+            "identity_rows_checked": int(len(expected)),
+            "unchanged_columns_checked": 0,
+            "timestamp_mismatches": 0,
+            "unchanged_value_mismatches": 0,
+            "sensor_conversion_mismatches": 0,
+            "unchanged_mismatch_columns": [],
+            "sensor_mismatch_columns": [],
+            "errors": errors,
+        }
+
+    try:
+        merged = expected.merge(
+            output,
+            on=IDENTITY_COLUMNS,
+            how="left",
+            validate="one_to_one",
+            suffixes=("_input", "_output"),
+            indicator=True,
+        )
+    except (KeyError, pd.errors.MergeError) as exc:
+        errors.append(f"input and output identities cannot be merged: {exc}")
+        return {
+            "identity_rows_checked": int(len(expected)),
+            "unchanged_columns_checked": 0,
+            "timestamp_mismatches": 0,
+            "unchanged_value_mismatches": 0,
+            "sensor_conversion_mismatches": 0,
+            "unchanged_mismatch_columns": [],
+            "sensor_mismatch_columns": [],
+            "errors": errors,
+        }
+    if not merged["_merge"].eq("both").all():
+        errors.append("input and output identities cannot be aligned")
+        return {
+            "identity_rows_checked": int(len(expected)),
+            "unchanged_columns_checked": 0,
+            "timestamp_mismatches": 0,
+            "unchanged_value_mismatches": 0,
+            "sensor_conversion_mismatches": 0,
+            "unchanged_mismatch_columns": [],
+            "sensor_mismatch_columns": [],
+            "errors": errors,
+        }
+
+    unchanged_columns = sorted(
+        (set(expected.columns) & set(output.columns))
+        - set(IDENTITY_COLUMNS)
+        - set(sensors)
+        - {"timestamp"}
+        - derived_columns
+    )
+    unchanged_mismatch_columns: list[str] = []
+    mismatch_count = 0
+    for column in unchanged_columns:
+        equal = _row_value_equal(
+            merged[f"{column}_input"], merged[f"{column}_output"]
+        )
+        count = int((~equal).sum())
+        if count:
+            unchanged_mismatch_columns.append(column)
+            mismatch_count += count
+
+    input_timestamp = pd.to_datetime(merged["timestamp_input"], errors="coerce")
+    output_timestamp = pd.to_datetime(merged["timestamp_output"], errors="coerce")
+    timestamp_equal = input_timestamp.eq(output_timestamp) | (
+        input_timestamp.isna() & output_timestamp.isna()
+    )
+    timestamp_mismatches = int((~timestamp_equal).sum())
+    if timestamp_mismatches:
+        errors.append("timestamp values differ row-by-row")
+
+    sensor_mismatch_columns: list[str] = []
+    sensor_mismatch_count = 0
+    for sensor in sensors:
+        raw = merged[f"{sensor}_input"]
+        raw_numeric = pd.to_numeric(raw, errors="coerce")
+        permitted_missing = (
+            placeholder_mask(raw)
+            | raw_numeric.isin([np.inf, -np.inf])
+            | (raw_numeric.isna() & raw.notna())
+        )
+        expected_numeric = raw_numeric.mask(permitted_missing)
+        observed_numeric = pd.to_numeric(
+            merged[f"{sensor}_output"], errors="coerce"
+        )
+        equal = expected_numeric.eq(observed_numeric) | (
+            expected_numeric.isna() & observed_numeric.isna()
+        )
+        count = int((~equal).sum())
+        if count:
+            sensor_mismatch_columns.append(sensor)
+            sensor_mismatch_count += count
+
+    if unchanged_mismatch_columns:
+        errors.append(
+            "unchanged fields differ row-by-row: "
+            + ", ".join(unchanged_mismatch_columns)
+        )
+    if sensor_mismatch_columns:
+        errors.append(
+            "sensor values differ beyond permitted conversions: "
+            + ", ".join(sensor_mismatch_columns)
+        )
+    return {
+        "identity_rows_checked": int(len(expected)),
+        "unchanged_columns_checked": int(len(unchanged_columns)),
+        "timestamp_mismatches": timestamp_mismatches,
+        "unchanged_value_mismatches": mismatch_count,
+        "sensor_conversion_mismatches": sensor_mismatch_count,
+        "unchanged_mismatch_columns": unchanged_mismatch_columns,
+        "sensor_mismatch_columns": sensor_mismatch_columns,
+        "errors": errors,
+    }
 
 
 def _verify_output(
@@ -264,14 +391,9 @@ def _verify_output(
     raw_duplicate_mask = raw.duplicated(KEY_COLUMNS, keep=False)
     action = policy_config["policies"][policy]["action"]
     expected = raw.loc[~raw_duplicate_mask].copy() if action.startswith("exclude") else raw
-    identity_columns = ["building", "source_row_id"]
-    expected_ids = set(map(tuple, expected[identity_columns].to_numpy()))
-    output_ids = set(map(tuple, output[identity_columns].to_numpy()))
     errors: list[str] = []
-    if expected_ids != output_ids:
-        errors.append("output source-row identities do not match the declared policy")
-    if output[identity_columns].duplicated().any():
-        errors.append("output contains duplicate source-row identities")
+    row_comparison = _compare_cleaned_rows(expected, output, sensors)
+    errors.extend(row_comparison["errors"])
 
     duplicate_key_count, duplicate_row_count = _duplicate_counts(raw)
     output_duplicate_key_count, output_duplicate_row_count = _duplicate_counts(output)
@@ -295,7 +417,7 @@ def _verify_output(
         missing_flag = output[f"is_missing__{sensor}"].astype(bool)
         if missing_flag.ne(numeric.isna()).any():
             errors.append(f"{sensor} missingness flag is inconsistent")
-        if _placeholder_mask(output[sensor]).any():
+        if placeholder_mask(output[sensor]).any():
             errors.append(f"{sensor} still contains a literal placeholder")
     expected_labels = expected.groupby(["building", "label"], dropna=False).size().sort_index()
     output_labels = output.groupby(["building", "label"], dropna=False).size().sort_index()
@@ -338,9 +460,17 @@ def _verify_output(
             "output is not chronological within an AHU" == error for error in errors
         ),
         "labels_preserved": not any(
-            "output label counts" in error for error in errors
+            "output label counts" in error or "unchanged fields" in error and "label" in error
+            for error in errors
         ),
         "source_rows_match": not any("source-row identities" in error for error in errors),
+        **{key: value for key, value in row_comparison.items() if key != "errors"},
+        "permitted_sensor_conversions": {
+            "numeric_strings": "parsed to numeric values without changing their numeric value",
+            "literal_placeholders": "placeholder tokens converted to missing values",
+            "non_finite_values": "positive or negative infinity converted to missing values",
+            "invalid_numeric_text": "non-placeholder non-numeric sensor text converted to missing values",
+        },
         "checks_passed": not errors,
         "errors": errors,
     }
@@ -419,9 +549,8 @@ def verify_cleaned_multibuilding(
 
     audit_path = output_dir / "cleaning_second_audit.csv"
     pd.concat(audit_frames, ignore_index=True).to_csv(audit_path, index=False)
-    verification_manifest = _json_safe(
-        {
-            "schema_version": 1,
+    verification_manifest = {
+            "schema_version": 2,
             "generated_at": datetime.now().astimezone().isoformat(),
             "input_file": str(input_file.expanduser().resolve()),
             "input_sha256": sha256_file(input_file),
@@ -432,25 +561,24 @@ def verify_cleaned_multibuilding(
             },
             "all_checks_passed": True,
         }
-    )
     manifest_path = output_dir / "cleaning_verification_manifest.json"
-    manifest_path.write_text(
-        json.dumps(verification_manifest, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json(manifest_path, verification_manifest)
     lines = [
         "# Multibuilding cleaning second audit",
         "",
         "All checks passed. No imputation was performed by the cleaning command.",
         "",
-        "| Policy | Input rows | Output rows | Changed rows | Excluded rows | Retained with quality flags | Imputed rows | Imputed cells |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Policy | Input rows | Output rows | Changed rows | Excluded rows | Retained with quality flags | Timestamp mismatches | Unchanged mismatches | Sensor mismatches | Imputed rows | Imputed cells |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for summary in summaries.values():
         lines.append(
             f"| {summary['policy']} | {summary['input_rows']:,} | {summary['output_rows']:,} | "
             f"{summary['rows_changed']:,} | {summary['rows_excluded']:,} | "
             f"{summary['rows_retained_with_quality_flags']:,} | "
+            f"{summary['timestamp_mismatches']:,} | "
+            f"{summary['unchanged_value_mismatches']:,} | "
+            f"{summary['sensor_conversion_mismatches']:,} | "
             f"{summary['rows_imputed']:,} | {summary['imputed_cells']:,} |"
         )
     (output_dir / "cleaning_second_audit.md").write_text(

@@ -187,7 +187,7 @@ Create a clean, reusable representation for all three buildings.
 Add a new adapter rather than modifying the RBC parser in place, for example:
 
 ```text
-src/sfsa/data/multibuilding_ahu.py
+src/ahu_fdd/multibuilding.py
 ```
 
 The canonical table should contain:
@@ -273,7 +273,7 @@ Phase 5 feature-engineering work.
 
 ### Deliverables
 
-- `discover_auditorium_patterns` command;
+- the multibuilding pattern-discovery command and its saved artefacts;
 - normal-operation profile tables and transition summaries;
 - PCA coordinates, explained-variance tables and figures;
 - input-checksummed manifest and human-readable summary;
@@ -424,7 +424,7 @@ Evaluate exact fault-type classification separately from binary detection.
 ### Tasks
 
 - flat multiclass classification;
-- confidence estimates and abstention for unsupported classes;
+- model scores and abstention for unsupported classes;
 - per-class and per-building metrics;
 - rare-class sensitivity analysis;
 - confusion-matrix interpretation.
@@ -465,7 +465,7 @@ Test whether the model is useful beyond the building and data pattern it saw dur
 
 The report must include at least one strong transfer result and one failure case. Poor transfer is a finding, not a reason to hide the experiment.
 
-## Phase 11 — Confidence and operational outputs
+## Phase 11 — Model scores and operational outputs
 
 ### Objective
 
@@ -475,22 +475,22 @@ Translate model probabilities into safe staff-facing outputs.
 
 - anomaly status;
 - predicted fault type;
-- calibrated confidence;
+- model score with explicit non-calibration wording;
 - uncertain/abstain state;
 - supporting sensor evidence;
-- event start and end based on labelled rows;
+- event start and end based on consecutive detector-alert rows;
 - priority score using documented severity and criticality tables.
 
 ### Limitations to state
 
 - hourly labels do not establish the physical fault onset;
-- event duration is labelled duration;
+- event duration is detected-alert duration, not verified physical duration;
 - no fault intensity is available;
 - asset criticality must be supplied by the client or treated as a documented assumption.
 
 ### Acceptance gate
 
-Every example alert must be traceable to the model prediction, confidence threshold, event grouping and priority-policy inputs.
+Every example alert must be traceable to a saved row-level detector prediction, any matching diagnosis prediction, the model-score threshold, event grouping and priority-policy inputs. Normal detector rows must not become priority events, and unmatched alerts must remain explicitly uncertain.
 
 ## Phase 12 — Notebooks and examiner workflow
 

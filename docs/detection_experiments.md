@@ -2,11 +2,11 @@
 
 The detection runner compares four methods under a frozen evaluation protocol:
 
-| Method | Training data | Feature variants |
+| Method | Training data | Headline input |
 | --- | --- | --- |
 | `normal_range_rule` | Normal training rows define the 1st–99th percentile operating range | Physical signal; the rule is feature-independent |
-| `isolation_forest` | Normal training rows only | Physical signal and operational context |
-| `xgboost` | Labelled training rows | Physical signal and operational context |
+| `isolation_forest` | Normal training rows only | Saved default feature table |
+| `xgboost` | Labelled training rows | Saved default feature table |
 | `lstm_autoencoder` | Normal training sequences only | Physical signal |
 
 TensorFlow is a project dependency because the LSTM autoencoder is part of the
@@ -25,19 +25,12 @@ the elapsed time exceeds the configured one-hour cadence; a window can never
 bridge an unobserved timestamp. Past-only rolling features use the same gap
 boundary.
 
-## Run
+## Headline run
 
-First create the canonical table and frozen assignments, then run:
+The former raw-feature detection runner has been removed. All headline pooled
+detection uses the quality-controlled saved-feature runner described in
+`docs/quality_detection.md`. This prevents an experiment from silently
+rebuilding a different feature table inside the model command.
 
-```bash
-run_detection_experiments \
-  --data-file data/interim/canonical/canonical_ahu.csv \
-  --splits-file data/interim/evaluation_splits/evaluation_splits.csv \
-  --output-dir results/detection \
-  --config configs/detection.yaml \
-  --building-config configs/multibuilding_ahu.yaml
-```
-
-The output contains fold metrics, grouped summaries, a manifest and a readable
-Markdown table. The saved Phase 7 baseline results remain the simple-model
-comparison; they are not overwritten by this command.
+The operational-context feature set is a separate sensitivity comparison in
+the results notebook. It is not silently mixed into the headline run.

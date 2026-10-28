@@ -18,6 +18,11 @@ training fold only.
 The output reports fold-level F1, balanced accuracy, precision, recall,
 false-positive rate and LSTM coverage. A low LSTM coverage is reported rather
 than hidden when a test stream lacks a complete contiguous sequence.
+It also writes `quality_detection_predictions.csv`, containing one row for
+every scored test observation. The file includes the binary `prediction`, the
+true label used for audit-only evaluation, model, design, fold and row
+identity. Normal predictions are retained here so downstream operations can
+prove that only detector alerts become operational events.
 
 Example run for the main policy:
 
@@ -53,4 +58,9 @@ F1 was 0.743 when ambiguous duplicate keys were excluded and 0.737 when they
 were retained. The small change supports the conclusion that the duplicate
 policy is not driving the headline result. These are pooled results; the
 building-specific models are a separate next step.
+
+To create operational priority events from the saved XGBoost predictions, use
+the `score_ahu_priorities` command described in
+`docs/operational_priority_scoring.md`. It filters `prediction == 1`, groups
+adjacent alerts, and optionally attaches matching diagnosis rows.
 

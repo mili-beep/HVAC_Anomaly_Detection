@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,8 +13,8 @@ import pandas as pd
 import yaml
 from sklearn.metrics import roc_auc_score
 
-from ahu_fdd.audit import sha256_file
 from ahu_fdd.multibuilding import load_config
+from ahu_fdd.utils import json_safe, numeric_series, sha256_file, write_json
 
 KEY_COLUMNS = ["building", "ahu", "timestamp", "source_row_id", "label"]
 
@@ -35,26 +34,6 @@ def load_feature_settings(path: Path) -> dict[str, Any]:
     if not isinstance(context, dict):
         raise ValueError("operational_context must be a mapping")
     return config
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    return str(value)
-
-
-def _numeric(frame: pd.DataFrame, column: str) -> pd.Series:
-    return pd.to_numeric(frame[column], errors="coerce").replace([np.inf, -np.inf], np.nan)
 
 
 def _add(
@@ -93,7 +72,7 @@ def _past_rolling(
     result = pd.Series(np.nan, index=frame.index, dtype="float64")
     for _, indices in frame.groupby(["building", "ahu"], sort=False).groups.items():
         group = frame.loc[indices]
-        values = _numeric(group, column)
+        values = numeric_series(group[column])
         hours = pd.to_datetime(group["timestamp"]).diff().dt.total_seconds().div(3600)
         duplicate = group.get(
             "duplicate_ahu_timestamp", pd.Series(False, index=group.index)
@@ -117,7 +96,7 @@ def _past_rate(frame: pd.DataFrame, column: str, max_gap_hours: float) -> pd.Ser
     result = pd.Series(np.nan, index=frame.index, dtype="float64")
     for _, indices in frame.groupby(["building", "ahu"], sort=False).groups.items():
         group = frame.loc[indices]
-        values = _numeric(group, column)
+        values = numeric_series(group[column])
         timestamps = pd.to_datetime(group["timestamp"])
         duplicate = group.get(
             "duplicate_ahu_timestamp", pd.Series(False, index=group.index)
@@ -164,7 +143,7 @@ def engineer_multibuilding_features(
     values: dict[str, pd.Series] = {}
     lineage: list[dict[str, Any]] = []
     variants = {"physical_signal": [], "operational_context": []}
-    numeric = {column: _numeric(ordered, column) for column in sensor_columns}
+    numeric = {column: numeric_series(ordered[column]) for column in sensor_columns}
 
     temporal_gap = float(settings["temporal_contiguity_max_gap_hours"])
     rate_gap = min(float(settings["rate_max_gap_hours"]), temporal_gap)
@@ -453,7 +432,7 @@ def engineer_multibuilding(
     lineage.to_csv(lineage_path, index=False)
     audit_path = output_dir / "shortcut_audit.csv"
     audit.to_csv(audit_path, index=False)
-    manifest = _json_safe(
+    manifest = json_safe(
         {
             "schema_version": int(settings["schema_version"]),
             "generated_at": datetime.now().astimezone().isoformat(),
@@ -474,7 +453,7 @@ def engineer_multibuilding(
         }
     )
     manifest_path = output_dir / "feature_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest)
     lines = [
         "# Multibuilding feature-generation summary",
         "",

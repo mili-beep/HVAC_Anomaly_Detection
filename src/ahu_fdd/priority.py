@@ -1,4 +1,4 @@
-"""Create configurable, auditable priority scores from diagnosis predictions."""
+"""Create configurable, auditable priority scores from detector alerts."""
 
 from __future__ import annotations
 
@@ -10,12 +10,19 @@ from typing import Any, Iterable
 import pandas as pd
 import yaml
 
-REQUIRED_COLUMNS = {
+from ahu_fdd.utils import write_json
+
+DETECTION_COLUMNS = {
+    "row_id",
     "building",
     "ahu",
     "timestamp",
+    "prediction",
+}
+DIAGNOSIS_COLUMNS = {
+    "row_id",
     "predicted_type",
-    "type_confidence",
+    "type_model_score",
     "type_abstained",
 }
 
@@ -76,20 +83,97 @@ def _band(score: float, policy: dict[str, Any]) -> tuple[str, str]:
     raise ValueError(f"Priority score is outside configured bands: {score}")
 
 
-def group_priority_events(predictions: pd.DataFrame, policy: dict[str, Any]) -> pd.DataFrame:
-    """Group consecutive flagged prediction rows into scored operational events."""
-    missing = REQUIRED_COLUMNS - set(predictions.columns)
+def _as_prediction(value: Any) -> int:
+    number = pd.to_numeric(value, errors="raise")
+    if number not in (0, 1):
+        raise ValueError("Detector predictions must contain only 0 or 1")
+    return int(number)
+
+
+def attach_diagnosis(
+    detections: pd.DataFrame, diagnosis: pd.DataFrame | None = None
+) -> pd.DataFrame:
+    """Attach diagnosis where a detector alert has a matching diagnosis row."""
+    missing = DETECTION_COLUMNS - set(detections.columns)
     if missing:
-        raise ValueError(f"Prediction table is missing required columns: {sorted(missing)}")
-    frame = predictions.copy()
+        raise ValueError(f"Detection table is missing required columns: {sorted(missing)}")
+    frame = detections.copy()
+    frame["prediction"] = frame["prediction"].map(_as_prediction)
     frame["timestamp"] = pd.to_datetime(frame["timestamp"], errors="raise")
-    frame["type_confidence"] = pd.to_numeric(frame["type_confidence"], errors="raise")
-    frame["type_abstained"] = frame["type_abstained"].map(_as_bool)
+
+    if diagnosis is None:
+        frame["predicted_type"] = "Uncertain"
+        frame["type_model_score"] = 0.0
+        frame["type_abstained"] = True
+        return frame
+
+    missing = DIAGNOSIS_COLUMNS - set(diagnosis.columns)
+    if missing:
+        raise ValueError(f"Diagnosis table is missing required columns: {sorted(missing)}")
+    diagnosis_frame = diagnosis.copy()
+    if "task" in diagnosis_frame.columns:
+        diagnosis_frame = diagnosis_frame.loc[
+            diagnosis_frame["task"].eq("fault_type")
+        ].copy()
+    join_columns = ["row_id"]
+    for column in ("design", "fold"):
+        if column in frame.columns and column in diagnosis_frame.columns:
+            join_columns.append(column)
+    if diagnosis_frame.duplicated(join_columns).any():
+        raise ValueError(
+            "Diagnosis table contains multiple rows for one detector prediction; "
+            "select one diagnosis variant before scoring priorities"
+        )
+    diagnosis_frame = diagnosis_frame[
+        join_columns + ["predicted_type", "type_model_score", "type_abstained"]
+    ]
+    frame = frame.merge(diagnosis_frame, on=join_columns, how="left", validate="one_to_one")
+    frame["predicted_type"] = frame["predicted_type"].fillna("Uncertain")
+    frame["type_model_score"] = pd.to_numeric(
+        frame["type_model_score"], errors="coerce"
+    ).fillna(0.0)
+    frame["type_abstained"] = frame["type_abstained"].fillna(True).map(_as_bool)
+    return frame
+
+
+def group_priority_events(predictions: pd.DataFrame, policy: dict[str, Any]) -> pd.DataFrame:
+    """Group consecutive detector-alert rows into scored operational events."""
+    missing = DETECTION_COLUMNS - set(predictions.columns)
+    if missing:
+        raise ValueError(f"Detection table is missing required columns: {sorted(missing)}")
+    # ``run_priority_scoring`` may already have joined diagnosis.  Do not
+    # attach a second set of columns and silently create ``*_x``/``*_y``
+    # fields when the public grouping helper is called directly.
+    if DIAGNOSIS_COLUMNS.issubset(predictions.columns):
+        frame = predictions.copy()
+        frame["prediction"] = frame["prediction"].map(_as_prediction)
+        frame["timestamp"] = pd.to_datetime(frame["timestamp"], errors="raise")
+        frame["type_model_score"] = pd.to_numeric(
+            frame["type_model_score"], errors="raise"
+        )
+        frame["type_abstained"] = frame["type_abstained"].map(_as_bool)
+    else:
+        frame = attach_diagnosis(predictions)
+    frame = frame.loc[frame["prediction"].eq(1)].copy()
+    if frame.empty:
+        return pd.DataFrame(
+            columns=[
+                "event_id", "building", "ahu", "start_time", "end_time",
+                "detected_duration_minutes", "detected_rows", "fault_type",
+                "diagnosis_model_score", "severity_score", "duration_score",
+                "criticality_score", "priority_score", "priority_band",
+                "recommended_action",
+            ]
+        )
     frame["reported_type"] = frame["predicted_type"].where(~frame["type_abstained"], "Uncertain")
     frame = frame.sort_values(["building", "ahu", "timestamp"]).reset_index(drop=True)
     gap = pd.to_timedelta(float(policy.get("max_gap_minutes", 60)), unit="m")
     keys = ["building", "ahu"]
-    context_keys = [column for column in ("design", "fold") if column in frame.columns]
+    context_keys = [
+        column
+        for column in ("design", "fold", "model", "duplicate_policy")
+        if column in frame.columns
+    ]
     keys.extend(context_keys)
     previous = frame.groupby(keys, sort=False)["timestamp"].shift()
     starts = previous.isna() | (frame["timestamp"] - previous > gap)
@@ -106,7 +190,7 @@ def group_priority_events(predictions: pd.DataFrame, policy: dict[str, Any]) -> 
         duration_minutes = max(interval, (end - start).total_seconds() / 60 + interval)
         known = group.loc[group["reported_type"].ne("Uncertain"), "reported_type"]
         fault_type = str(known.mode().iloc[0]) if not known.empty else "Uncertain"
-        confidence = float(group["type_confidence"].mean())
+        model_score = float(group["type_model_score"].mean())
         severity = _score_severity(fault_type, policy)
         duration = _score_duration(duration_minutes, policy)
         criticality = _score_criticality(str(building), str(ahu), policy)
@@ -124,10 +208,10 @@ def group_priority_events(predictions: pd.DataFrame, policy: dict[str, Any]) -> 
                 "ahu": ahu,
                 "start_time": start,
                 "end_time": end,
-                "labelled_duration_minutes": duration_minutes,
-                "labelled_rows": len(group),
+                "detected_duration_minutes": duration_minutes,
+                "detected_rows": len(group),
                 "fault_type": fault_type,
-                "diagnosis_confidence": confidence,
+                "diagnosis_model_score": model_score,
                 "severity_score": severity,
                 "duration_score": duration,
                 "criticality_score": criticality,
@@ -145,41 +229,71 @@ def run_priority_scoring(
     policy_path: Path,
     output_dir: Path,
     design: str = "chronological",
+    model: str = "xgboost",
+    diagnosis_predictions_path: Path | None = None,
 ) -> dict[str, str]:
-    """Build scored events from one declared evaluation design."""
+    """Build scored events from detector alerts and optional diagnosis output."""
     policy = load_policy(policy_path)
     predictions = pd.read_csv(predictions_path, low_memory=False)
     if "design" in predictions and design:
         predictions = predictions.loc[predictions["design"].eq(design)].copy()
+    if "model" in predictions and model:
+        predictions = predictions.loc[predictions["model"].eq(model)].copy()
     if predictions.empty:
-        raise ValueError(f"No prediction rows remain for design {design!r}")
+        raise ValueError(
+            f"No detector prediction rows remain for design {design!r} and model {model!r}"
+        )
+    diagnosis = (
+        pd.read_csv(diagnosis_predictions_path, low_memory=False)
+        if diagnosis_predictions_path is not None
+        else None
+    )
+    predictions = attach_diagnosis(predictions, diagnosis)
     events = group_priority_events(predictions, policy)
     output_dir.mkdir(parents=True, exist_ok=True)
     events_path = output_dir / "priority_events.csv"
     events.to_csv(events_path, index=False)
-    summary = events["priority_band"].value_counts().reindex(["Low", "Medium", "High"], fill_value=0)
+    summary = events.get("priority_band", pd.Series(dtype="string")).value_counts().reindex(
+        ["Low", "Medium", "High"], fill_value=0
+    )
     summary_path = output_dir / "priority_summary.csv"
     pd.DataFrame({"priority_band": summary.index, "events": summary.values}).to_csv(summary_path, index=False)
+    alert_mask = predictions["prediction"].eq(1)
+    matched_diagnosis = alert_mask & predictions["predicted_type"].ne("Uncertain")
     manifest = {
-        "schema_version": 1,
-        "predictions_file": str(predictions_path.expanduser().resolve()),
+        "schema_version": 2,
+        "detection_predictions_file": str(predictions_path.expanduser().resolve()),
+        "diagnosis_predictions_file": (
+            str(diagnosis_predictions_path.expanduser().resolve())
+            if diagnosis_predictions_path is not None
+            else None
+        ),
         "policy_file": str(policy_path.expanduser().resolve()),
         "design": design,
+        "model": model,
         "input_rows": int(len(predictions)),
+        "detected_rows": int(predictions["prediction"].eq(1).sum()),
+        "diagnosis_matched_rows": int(matched_diagnosis.sum()),
+        "reliable_diagnosis_rows": int(
+            (
+                matched_diagnosis
+                & ~predictions["type_abstained"].astype(bool)
+            ).sum()
+        ),
         "event_count": int(len(events)),
-        "duration_definition": "labelled event duration: end-start plus the configured sampling interval",
-        "limitation": "The dataset labels complete sessions; duration does not establish physical fault onset or physical duration.",
+        "duration_definition": "detected event duration: end-start plus the configured sampling interval",
+        "limitation": "Historical timestamps show when the detector flagged rows; they do not establish physical fault onset or duration.",
         "output_files": {"events": str(events_path), "summary": str(summary_path)},
     }
     manifest_path = output_dir / "priority_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest, sort_keys=False)
     markdown = [
         "# Operational priority scoring",
         "",
-        "Scores combine policy-defined severity, labelled duration and equipment criticality.",
+        "Scores combine policy-defined severity, detected duration and equipment criticality.",
         "They are decision-support outputs, not learned probabilities.",
         "",
-        "The source labels complete sessions, so durations are labelled event durations rather than verified physical fault durations.",
+        "Durations describe consecutive detector-alert rows, not verified physical fault durations.",
         "",
         f"Events: {len(events):,}",
         "",
@@ -195,11 +309,24 @@ def run_priority_scoring(
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Create auditable AHU event priority scores")
     parser.add_argument("--predictions", type=Path, required=True)
+    parser.add_argument(
+        "--diagnosis-predictions",
+        type=Path,
+        help="Optional row-level diagnosis predictions to attach to detector alerts",
+    )
     parser.add_argument("--policy", type=Path, default=Path("configs/operational_priority.yaml"))
     parser.add_argument("--output-dir", type=Path, default=Path("results/operational"))
     parser.add_argument("--design", default="chronological")
+    parser.add_argument("--model", default="xgboost")
     args = parser.parse_args(argv)
-    result = run_priority_scoring(args.predictions, args.policy, args.output_dir, args.design)
+    result = run_priority_scoring(
+        args.predictions,
+        args.policy,
+        args.output_dir,
+        args.design,
+        args.model,
+        args.diagnosis_predictions,
+    )
     print(f"Wrote priority outputs to {args.output_dir.resolve()}")
     print(json.dumps(result, indent=2))
     return 0

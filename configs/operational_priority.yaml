@@ -2,7 +2,6 @@ schema_version: 1
 
 # These are policy values, not learned model parameters. They should be reviewed
 # with Smart Facilities SA before operational use.
-confidence_threshold: 0.70
 sampling_interval_minutes: 60
 max_gap_minutes: 60
 

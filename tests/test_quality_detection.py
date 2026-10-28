@@ -77,3 +77,10 @@ def test_quality_detection_writes_metrics_and_manifest(tmp_path: Path) -> None:
     assert set(summary["model"]) == {"normal_range_rule"}
     assert "ahu_held_out" not in set(summary["design"])
     assert (output_dir / "quality_detection_manifest.json").is_file()
+    predictions = pd.read_csv(result["predictions"])
+    assert {
+        "row_id", "building", "ahu", "timestamp", "design", "fold", "model",
+        "duplicate_policy", "prediction", "y_true",
+    }.issubset(predictions.columns)
+    assert set(predictions["prediction"].unique()) <= {0, 1}
+    assert set(predictions["design"]) <= {"chronological", "building_held_out", "nested_grouped"}

@@ -38,8 +38,13 @@ clean_multibuilding_ahu \
 ## Step 4 — Verify cleaning
 
 Re-audit row counts, duplicate counts, labels, timestamps and quality flags.
-The main table must contain no duplicate AHU/timestamp keys, and the sensitivity
-table must retain the expected hospital duplicate observations.
+The verifier merges retained rows by `building/source_row_id` and compares AHU,
+timestamp, label and every other unchanged field row by row. Timestamp text may
+be reformatted, but the parsed timestamp must remain identical. The only
+permitted sensor conversions are numeric parsing, conversion of literal
+placeholders, non-finite values and invalid numeric text to missing values. The main table must
+contain no duplicate AHU/timestamp keys, and the sensitivity table must retain
+the expected hospital duplicate observations.
 
 Run it with:
 

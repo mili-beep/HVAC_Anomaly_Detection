@@ -12,7 +12,7 @@ The runner evaluates:
 - unsupported test classes, reported separately rather than counted as ordinary
   model errors;
 - a minimum-support gate that excludes fault labels with fewer than 30 rows;
-- a fixed 0.70 confidence threshold and abstention/coverage metrics.
+- a fixed 0.70 model-score threshold and abstention/coverage metrics.
 
 Diagnosis uses the chronological, nested-grouped and building-held-out split
 designs. The pooled AHU-held-out assignment is retained in the split artefact
@@ -20,10 +20,10 @@ but disabled for current modelling; the nested-grouped design provides the
 stronger repeated unseen-AHU assessment.
 
 The default headline feature variant is the saved default engineered feature
-set. The confidence value
-is the maximum XGBoost class score, not a calibrated probability. The report
-must therefore describe it as model confidence unless a later calibration study
-is completed. The project does not derive or evaluate broader fault groups:
+set. The `type_model_score` value is the maximum XGBoost class score, not a
+calibrated probability. It must therefore be displayed and described as a
+model score, not as a probability or calibrated confidence. The project does
+not derive or evaluate broader fault groups:
 the dataset contains seven original fault labels, and exact-type performance is
 the more direct and transparent diagnosis result.
 
@@ -52,7 +52,7 @@ Rows excluded by the duplicate policy remain documented by the quality-control
 audit and are not silently reintroduced for diagnosis.
 
 The output includes a summary table, per-class metrics, per-building metrics,
-confusion matrices, row-level predictions with confidence and abstention flags,
+confusion matrices, row-level predictions with model scores and abstention flags,
 a manifest and a Markdown summary. If a fault class is absent from a training
 fold, its test rows are counted as `unsupported_rows` and are not disguised as
 ordinary poor classification performance.

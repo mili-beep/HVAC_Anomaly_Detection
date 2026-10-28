@@ -93,6 +93,8 @@ def test_diagnosis_runner_writes_auditable_outputs(tmp_path: Path) -> None:
     assert set(summary["task"]) == {"fault_type"}
     predictions = pd.read_csv(output_dir / "diagnosis_predictions.csv")
     assert set(predictions["task"]) == {"fault_type"}
+    assert "type_model_score" in predictions
+    assert "type_confidence" not in predictions
     assert "predicted_group" not in predictions
     assert (output_dir / "diagnosis_predictions.csv").is_file()
     assert (output_dir / "diagnosis_manifest.json").is_file()

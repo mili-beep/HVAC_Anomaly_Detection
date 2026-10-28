@@ -1,6 +1,6 @@
 schema_version: 1
 normal_label: Normal condition
-confidence_threshold: 0.70
+model_score_threshold: 0.70
 minimum_fault_rows: 30
 
 # This is a sensitivity run, not the practical diagnosis headline. It uses

@@ -6,15 +6,21 @@ train models; those decisions belong to later project phases.
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
+
+from ahu_fdd.utils import (
+    PLACEHOLDER_TOKENS,  # noqa: F401 - retained as a compatibility export
+    json_safe,
+    placeholder_mask,
+    sha256_file,
+    write_json,
+)
 
 DATASET_FILES = {
     "auditorium": "auditorium_scientific_data.csv",
@@ -23,16 +29,7 @@ DATASET_FILES = {
 }
 LABEL_COLUMN = "labeling"
 AHU_COLUMN = "AHU name"
-PLACEHOLDER_TOKENS = frozenset({".", "", "na", "n/a", "nan", "null", "none"})
 NUMERIC_RATIO_THRESHOLD = 0.8
-
-
-def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(chunk_size), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def parse_timestamps(frame: pd.DataFrame, building: str) -> pd.Series:
@@ -50,12 +47,6 @@ def parse_timestamps(frame: pd.DataFrame, building: str) -> pd.Series:
     if "Time" not in frame.columns:
         raise ValueError(f"{building} data requires a Time column")
     return pd.to_datetime(frame["Time"], errors="coerce")
-
-
-def placeholder_mask(series: pd.Series) -> pd.Series:
-    """Return a mask for explicit textual placeholder tokens."""
-    values = series.astype("string").str.strip().str.lower()
-    return values.isin(PLACEHOLDER_TOKENS) & series.notna()
 
 
 def duplicate_key_summary(
@@ -101,27 +92,6 @@ def _safe_float(value: Any) -> float | None:
         return None
     number = float(value)
     return number if np.isfinite(number) else None
-
-
-def _jsonable(value: Any) -> Any:
-    """Convert pandas/numpy values to strict JSON-compatible values."""
-    if isinstance(value, dict):
-        return {str(key): _jsonable(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set)):
-        return [_jsonable(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return _safe_float(value)
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    if pd.isna(value):
-        return None
-    return str(value)
 
 
 def _counts_to_records(table: pd.DataFrame, names: list[str]) -> list[dict[str, Any]]:
@@ -410,7 +380,7 @@ def audit_file(path: Path, building: str) -> dict[str, Any]:
         "label_quality_associations": _label_quality_associations(frame, label),
         "label_run_lengths": _run_length_audit(frame, timestamps),
     }
-    return _jsonable(result)
+    return json_safe(result)
 
 
 def _summary_markdown(manifest: dict[str, Any]) -> str:
@@ -505,7 +475,7 @@ def run_audit(data_root: Path, output_dir: Path) -> dict[str, Any]:
         )
 
     files = [audit_file(data_root / filename, building) for building, filename in DATASET_FILES.items()]
-    manifest = _jsonable(
+    manifest = json_safe(
         {
             "schema_version": 1,
             "generated_at": datetime.now().astimezone().isoformat(),
@@ -521,9 +491,7 @@ def run_audit(data_root: Path, output_dir: Path) -> dict[str, Any]:
             "files": files,
         }
     )
-    (output_dir / "audit_manifest.json").write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    write_json(output_dir / "audit_manifest.json", manifest)
     (output_dir / "audit_summary.md").write_text(
         _summary_markdown(manifest), encoding="utf-8"
     )

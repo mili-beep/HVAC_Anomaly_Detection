@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,19 +13,16 @@ import pandas as pd
 import yaml
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    accuracy_score,
-    f1_score,
-    precision_score,
-    recall_score,
-)
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from ahu_fdd.metrics import binary_metric_row
 from ahu_fdd.splits import (
     DISABLED_MODELING_DESIGN_NAMES,
     MODELING_DESIGN_NAMES,
 )
+from ahu_fdd.utils import json_safe, numeric_frame, write_json
+from ahu_fdd.validation import validate_assignments
 
 BASELINE_NAMES = (
     "majority_class",
@@ -54,30 +50,8 @@ def load_baseline_config(path: Path) -> dict[str, Any]:
     return config
 
 
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    return str(value)
-
-
-def _numeric(frame: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
-    return frame[columns].apply(pd.to_numeric, errors="coerce").replace(
-        [np.inf, -np.inf], np.nan
-    )
-
-
 def _usable_columns(train: pd.DataFrame, columns: list[str]) -> list[str]:
-    numeric = _numeric(train, columns)
+    numeric = numeric_frame(train, columns)
     return [
         column
         for column in columns
@@ -99,8 +73,8 @@ def _fit_logistic(
     usable = _usable_columns(train, columns)
     if not usable:
         return _majority_prediction(y_train, len(test))
-    train_matrix = _numeric(train, usable)
-    test_matrix = _numeric(test, usable)
+    train_matrix = numeric_frame(train, usable)
+    test_matrix = numeric_frame(test, usable)
     usable = [column for column in train_matrix if train_matrix[column].nunique() > 1]
     if not usable or y_train.nunique() < 2:
         return _majority_prediction(y_train, len(test))
@@ -113,7 +87,7 @@ def _fit_logistic(
     return model.predict(test_matrix[usable]).astype(int)
 
 
-def _normal_range_prediction(
+def normal_range_prediction(
     train: pd.DataFrame,
     test: pd.DataFrame,
     y_train: pd.Series,
@@ -126,81 +100,19 @@ def _normal_range_prediction(
         return _majority_prediction(y_train, len(test))
     lower_q = float(config["lower_quantile"])
     upper_q = float(config["upper_quantile"])
-    normal_values = _numeric(normal, usable)
+    normal_values = numeric_frame(normal, usable)
     lower = normal_values.quantile(lower_q)
     upper = normal_values.quantile(upper_q)
-    test_values = _numeric(test, usable)
+    test_values = numeric_frame(test, usable)
     outside = test_values.lt(lower, axis="columns") | test_values.gt(upper, axis="columns")
     return outside.any(axis=1).astype(int).to_numpy()
 
 
-def _metric_row(
-    design: str,
-    fold: str,
-    baseline: str,
-    y_true: pd.Series,
-    y_pred: np.ndarray,
-) -> dict[str, Any]:
-    true = y_true.to_numpy(dtype=int)
-    predicted = np.asarray(y_pred, dtype=int)
-    true_negative = int(((true == 0) & (predicted == 0)).sum())
-    false_positive = int(((true == 0) & (predicted == 1)).sum())
-    false_negative = int(((true == 1) & (predicted == 0)).sum())
-    true_positive = int(((true == 1) & (predicted == 1)).sum())
-    return {
-        "design": design,
-        "fold": fold,
-        "baseline": baseline,
-        "rows": int(len(true)),
-        "normal_support": int((true == 0).sum()),
-        "fault_support": int((true == 1).sum()),
-        "accuracy": float(accuracy_score(true, predicted)),
-        "balanced_accuracy": (
-            float(
-                0.5
-                * (
-                    true_negative / (true_negative + false_positive)
-                    + true_positive / (true_positive + false_negative)
-                )
-            )
-            if (true_negative + false_positive) and (true_positive + false_negative)
-            else np.nan
-        ),
-        "precision": float(
-            precision_score(true, predicted, labels=[0, 1], zero_division=0)
-        ),
-        "recall": float(recall_score(true, predicted, labels=[0, 1], zero_division=0)),
-        "f1": float(f1_score(true, predicted, labels=[0, 1], zero_division=0)),
-        "macro_f1": float(
-            f1_score(true, predicted, labels=[0, 1], average="macro", zero_division=0)
-        ),
-        "false_positive_rate": float(
-            false_positive / (false_positive + true_negative)
-            if true_negative + false_positive
-            else 0.0
-        ),
-        "true_negative": true_negative,
-        "false_positive": false_positive,
-        "false_negative": false_negative,
-        "true_positive": true_positive,
-    }
-
-
-def _validate_assignments(assignments: pd.DataFrame, row_count: int) -> None:
-    required = {"row_id", "design", "fold", "split"}
-    missing = required - set(assignments.columns)
-    if missing:
-        raise ValueError(f"Split assignments are missing columns: {sorted(missing)}")
-    if assignments["row_id"].isna().any() or assignments["row_id"].duplicated().any():
-        # Duplicate row IDs are valid across designs/folds, but not within one fold.
-        duplicate_groups = assignments.duplicated(["design", "fold", "row_id"]).any()
-        if duplicate_groups:
-            raise ValueError("Split assignments duplicate a row within a design/fold")
-    if assignments["row_id"].astype(int).lt(0).any() or assignments["row_id"].astype(int).ge(row_count).any():
-        raise ValueError("Split assignments contain row IDs outside the input table")
-    for (design, fold), group in assignments.groupby(["design", "fold"]):
-        if set(group["split"]) != {"train", "validation", "test"}:
-            raise ValueError(f"{design}/{fold} must contain train, validation and test rows")
+# Compatibility aliases for existing tests and downstream scripts. New code
+# imports the explicit public names from ahu_fdd.metrics and ahu_fdd.validation.
+_metric_row = binary_metric_row
+_validate_assignments = validate_assignments
+_normal_range_prediction = normal_range_prediction
 
 
 def run_baselines(
@@ -209,7 +121,7 @@ def run_baselines(
     config = load_baseline_config(config_path)
     data = pd.read_csv(data_file, low_memory=False).reset_index(drop=True)
     assignments = pd.read_csv(splits_file, low_memory=False)
-    _validate_assignments(assignments, len(data))
+    validate_assignments(assignments, len(data))
     modeling_assignments = assignments.loc[
         assignments["design"].isin(MODELING_DESIGN_NAMES)
     ].copy()
@@ -239,7 +151,7 @@ def run_baselines(
         y_test = y.iloc[test_ids]
         predictions = {
             "majority_class": _majority_prediction(y_train, len(test)),
-            "normal_range_rule": _normal_range_prediction(
+            "normal_range_rule": normal_range_prediction(
                 train, test, y_train, all_sensors, config["normal_range_rule"]
             ),
             "actuator_pump_only": _fit_logistic(
@@ -249,7 +161,7 @@ def run_baselines(
         if len(row_ids) != len(assignment):
             raise ValueError("Unexpected assignment row count")
         for baseline, predicted in predictions.items():
-            metrics.append(_metric_row(design, fold, baseline, y_test, predicted))
+            metrics.append(binary_metric_row(design, fold, baseline, y_test, predicted))
 
     output_dir.mkdir(parents=True, exist_ok=True)
     fold_path = output_dir / "baseline_metrics_by_fold.csv"
@@ -271,7 +183,7 @@ def run_baselines(
     )
     summary_path = output_dir / "baseline_metrics_summary.csv"
     summary.to_csv(summary_path, index=False)
-    manifest = _json_safe(
+    manifest = json_safe(
         {
             "schema_version": 1,
             "generated_at": datetime.now().astimezone().isoformat(),
@@ -287,7 +199,7 @@ def run_baselines(
         }
     )
     manifest_path = output_dir / "baseline_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest)
     markdown = output_dir / "baseline_summary.md"
     display = summary.sort_values(["design", "mean_f1"], ascending=[True, False])
     markdown_lines = [

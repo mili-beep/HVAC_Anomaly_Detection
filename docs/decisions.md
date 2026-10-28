@@ -20,11 +20,13 @@ mode-dependent missingness, class imbalance, and possible AHU-specific label
 shortcuts—must be measured and assigned an explicit policy before headline
 models are trained.
 
-## 2026-10-27 — Phase 2 auditorium policy implemented
+## 2026-10-27 — Initial auditorium policy (superseded)
 
-The auditorium policy is frozen in
-`configs/auditorium.yaml` and documented in
-`docs/auditorium_phase2_policy.md`. The source label mapping is explicitly:
+The initial auditorium-only policy established the data-quality decisions. It
+has since been replaced by the shared multibuilding policy in
+`configs/multibuilding_ahu.yaml`; the old auditorium-only configuration and
+phase documents are deliberately not part of the runnable repository. The
+source label mapping remains:
 
 ```text
 Normal condition -> normal
@@ -127,7 +129,7 @@ same frozen chronological, building-held-out and nested grouped assignments.
 The pooled AHU-held-out assignment is retained but disabled. The LSTM is an optional TensorFlow adapter and must be reported as
 unavailable when its dependency is absent, never replaced silently.
 
-## 2026-10-27 — Phase 4 auditorium cleaning
+## 2026-10-27 — Initial auditorium cleaning policy (superseded)
 
 Auditorium heating and cooling missingness is treated as structural operating
 mode availability. Inactive subsystem fields remain missing. Only a bounded,
@@ -137,7 +139,7 @@ operational-context variant includes pre-declared mode and availability
 indicators. The auditorium snapshot contains no eligible active gaps, so the
 second audit records zero imputed rows and zero imputed cells.
 
-## 2026-10-27 — Phase 5 auditorium feature engineering
+## 2026-10-27 — Initial auditorium feature engineering (superseded)
 
 Feature generation is label-independent and produces declared physical-signal
 and operational-context variants. Relationships, past-only rolling means and
@@ -168,7 +170,7 @@ fabricate missing rows or carry history across an outage. The gap rule is
 declared in `configs/feature_engineering.yaml` and `configs/detection.yaml`,
 and is covered by unit tests.
 
-## 2026-10-27 — Auditorium pattern discovery
+## 2026-10-27 — Initial auditorium pattern discovery (superseded)
 
 Normal-operation pattern discovery is a descriptive artefact, separate from
 feature engineering and model training. Profiles are calculated only from rows
@@ -266,3 +268,23 @@ sensors under nested grouped testing (0.956 versus 0.958), and was lower on
 building-held-out transfer (0.284 versus 0.495). Feature engineering is
 therefore retained as the practical, pre-declared model input, but the report
 must not claim that derived features improve every generalisation setting.
+
+## Shared internal utilities
+
+JSON-safe conversion, file checksums, placeholder detection, numeric coercion,
+and manifest writing are implemented once in `ahu_fdd.utils`. Audit, cleaning,
+feature, split, baseline, detection, diagnosis and reporting modules use these
+helpers so that serialization and data-quality behavior cannot drift between
+pipelines.
+
+## Explicit shared modelling APIs
+
+Model adapters are defined in `ahu_fdd.modeling`, binary metric construction
+is defined in `ahu_fdd.metrics`, and split-assignment checks are defined in
+`ahu_fdd.validation`. Detection, diagnosis, transfer, and comparison runners
+import these explicit APIs rather than reaching into underscore-prefixed
+implementation details of another runner. The `baselines` module retains small
+compatibility aliases for existing notebooks and scripts, but new project code
+must use the public shared modules. Detection configuration and model adapters
+are exposed directly from `ahu_fdd.modeling`; the obsolete `detection` facade
+has been removed.

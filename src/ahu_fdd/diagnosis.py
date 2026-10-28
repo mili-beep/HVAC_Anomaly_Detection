@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,13 +21,14 @@ from sklearn.metrics import (
 )
 from xgboost import XGBClassifier
 
-from ahu_fdd.baselines import _validate_assignments
-from ahu_fdd.detection import FoldTransformer
-from ahu_fdd.feature_sensitivity import load_variant_config, resolve_feature_variants
+from ahu_fdd.feature_analysis import load_variant_config, resolve_feature_variants
+from ahu_fdd.modeling import FoldTransformer
 from ahu_fdd.splits import (
     DISABLED_MODELING_DESIGN_NAMES,
     MODELING_DESIGN_NAMES,
 )
+from ahu_fdd.utils import json_safe, write_json
+from ahu_fdd.validation import validate_assignments
 
 DESIGN_NAMES = MODELING_DESIGN_NAMES
 
@@ -84,9 +85,9 @@ def load_diagnosis_config(path: Path) -> dict[str, Any]:
         raise ValueError("The diagnosis configuration must be a mapping")
     if not str(config.get("normal_label", "")).strip():
         raise ValueError("The diagnosis configuration must define normal_label")
-    threshold = float(config.get("confidence_threshold", 0))
+    threshold = float(config.get("model_score_threshold", 0))
     if not 0 < threshold < 1:
-        raise ValueError("confidence_threshold must be between zero and one")
+        raise ValueError("model_score_threshold must be between zero and one")
     minimum_fault_rows = int(config.get("minimum_fault_rows", 0))
     if minimum_fault_rows < 1:
         raise ValueError("minimum_fault_rows must be at least one")
@@ -96,26 +97,10 @@ def load_diagnosis_config(path: Path) -> dict[str, Any]:
     model = config.get("model")
     if not isinstance(model, dict):
         raise ValueError("The diagnosis configuration must define model settings")
-    config["confidence_threshold"] = threshold
+    config["model_score_threshold"] = threshold
     config["minimum_fault_rows"] = minimum_fault_rows
     config["feature_variants"] = [str(value) for value in variants]
     return config
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    return str(value)
 
 
 def _fit_multiclass(
@@ -124,7 +109,7 @@ def _fit_multiclass(
     test_matrix: np.ndarray,
     config: dict[str, Any],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Fit a weighted XGBoost classifier and return classes, labels and confidence."""
+    """Fit weighted XGBoost and return classes, labels and model scores."""
     classes = np.asarray(sorted(train_labels.astype(str).unique()), dtype=object)
     if not len(classes):
         return classes, np.empty(len(test_matrix), dtype=object), np.empty((len(test_matrix), 0))
@@ -187,7 +172,7 @@ def _record_metrics(
     task: str,
     true_labels: pd.Series,
     predicted: np.ndarray,
-    confidence: np.ndarray,
+    model_scores: np.ndarray,
     classes: np.ndarray,
     all_test_rows: int,
     unsupported_rows: int,
@@ -197,10 +182,10 @@ def _record_metrics(
     known = true_labels.astype(str).isin(classes)
     true = true_labels.astype(str).loc[known]
     pred = np.asarray(predicted, dtype=object)[known.to_numpy()]
-    conf = np.asarray(confidence, dtype=float)[known.to_numpy()]
-    confident = conf >= threshold
+    scores = np.asarray(model_scores, dtype=float)[known.to_numpy()]
+    above_threshold = scores >= threshold
     metrics = _metric_values(true, pred, classes)
-    confident_metrics = _metric_values(true.loc[confident], pred[confident], classes)
+    threshold_metrics = _metric_values(true.loc[above_threshold], pred[above_threshold], classes)
     summary.append(
         {
             "design": design,
@@ -211,12 +196,12 @@ def _record_metrics(
             "unsupported_rows": int(unsupported_rows),
             "all_test_rows": int(all_test_rows),
             "class_count": int(len(classes)),
-            "confidence_threshold": threshold,
-            "coverage": float(confident.mean()) if len(confident) else np.nan,
-            "confident_rows": int(confident.sum()),
-            "abstained_rows": int((~confident).sum()),
-            "abstention_rate": float((~confident).mean()) if len(confident) else np.nan,
-            "confident_accuracy": confident_metrics["accuracy"],
+            "model_score_threshold": threshold,
+            "coverage": float(above_threshold.mean()) if len(above_threshold) else np.nan,
+            "above_threshold_rows": int(above_threshold.sum()),
+            "abstained_rows": int((~above_threshold).sum()),
+            "abstention_rate": float((~above_threshold).mean()) if len(above_threshold) else np.nan,
+            "above_threshold_accuracy": threshold_metrics["accuracy"],
             **metrics,
         }
     )
@@ -300,7 +285,7 @@ def run_diagnosis(
         data_file, feature_file, feature_manifest_file, variant_config_file
     )
     assignments = pd.read_csv(splits_file, low_memory=False)
-    _validate_assignments(assignments, len(data))
+    validate_assignments(assignments, len(data))
     for variant in config["feature_variants"]:
         if variant not in variants:
             raise ValueError(f"Unknown feature variant in diagnosis config: {variant}")
@@ -323,7 +308,7 @@ def run_diagnosis(
     building_rows: list[dict[str, Any]] = []
     confusion_rows: list[dict[str, Any]] = []
     prediction_rows: list[dict[str, Any]] = []
-    threshold = float(config["confidence_threshold"])
+    threshold = float(config["model_score_threshold"])
     for variant in config["feature_variants"]:
         for (design, fold), assignment in assignments.groupby(["design", "fold"], sort=True):
             if design not in designs:
@@ -356,7 +341,7 @@ def run_diagnosis(
                 task="fault_type",
                 true_labels=test_types.reset_index(drop=True),
                 predicted=flat_pred,
-                confidence=flat_conf,
+                model_scores=flat_conf,
                 classes=type_classes,
                 all_test_rows=len(test_fault_ids),
                 unsupported_rows=int((~test_types.astype(str).isin(type_classes)).sum()),
@@ -376,7 +361,7 @@ def run_diagnosis(
                         "task": "fault_type",
                         "predicted_type": str(flat_pred[index]),
                         "true_type": str(test_types.iloc[index]),
-                        "type_confidence": float(flat_conf[index]),
+                        "type_model_score": float(flat_conf[index]),
                         "type_abstained": bool(flat_conf[index] < threshold),
                     }
                 )
@@ -396,7 +381,7 @@ def run_diagnosis(
     predictions_path = output_dir / "diagnosis_predictions.csv"
     pd.DataFrame(prediction_rows).to_csv(predictions_path, index=False)
 
-    manifest = _json_safe(
+    manifest = json_safe(
         {
             "schema_version": 1,
             "generated_at": datetime.now().astimezone().isoformat(),
@@ -415,7 +400,7 @@ def run_diagnosis(
                 label: int(fault_counts[label]) for label in excluded_fault_labels
             },
             "normal_label": normal_label,
-            "confidence_threshold": threshold,
+            "model_score_threshold": threshold,
             "minimum_fault_rows": minimum_fault_rows,
             "designs": designs,
             "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
@@ -439,30 +424,31 @@ def run_diagnosis(
         }
     )
     manifest_path = output_dir / "diagnosis_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest)
     markdown_path = output_dir / "diagnosis_summary.md"
     display_frame = summary_frame.groupby(["design", "variant", "task"], as_index=False).agg(
         folds=("fold", "nunique"), evaluated_rows=("evaluated_rows", "sum"),
         unsupported_rows=("unsupported_rows", "sum"), macro_f1=("macro_f1", "mean"),
-        confident_rows=("confident_rows", "sum"),
-        coverage=("coverage", "mean"), confident_accuracy=("confident_accuracy", "mean"),
+        above_threshold_rows=("above_threshold_rows", "sum"),
+        coverage=("coverage", "mean"),
+        above_threshold_accuracy=("above_threshold_accuracy", "mean"),
     )
     lines = [
         "# Diagnosis experiment summary",
         "",
         "Exact fault-type diagnosis is evaluated on fault-labelled rows only; normal-versus-fault detection is a separate task.",
-        "Confidence is the maximum XGBoost class score, with abstention below the configured threshold.",
+        "Model score is the maximum XGBoost class score, with abstention below the configured threshold.",
         f"Fault types with fewer than {minimum_fault_rows} labelled rows are excluded from diagnosis: "
         f"{', '.join(excluded_fault_labels) if excluded_fault_labels else 'none'}.",
         "",
-        "| Design | Variant | Task | Folds | Evaluated rows | Unsupported rows | Confident rows | Macro F1 | Mean-fold coverage | Confident accuracy |",
+        "| Design | Variant | Task | Folds | Evaluated rows | Unsupported rows | Rows above score threshold | Macro F1 | Mean-fold coverage | Accuracy above threshold |",
         "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for row in display_frame.itertuples(index=False):
         lines.append(
             f"| {row.design} | {row.variant} | {row.task} | {row.folds} | {row.evaluated_rows:,} | "
-            f"{row.unsupported_rows:,} | {row.confident_rows:,} | {row.macro_f1:.3f} | "
-            f"{row.coverage:.3f} | {row.confident_accuracy:.3f} |"
+            f"{row.unsupported_rows:,} | {row.above_threshold_rows:,} | {row.macro_f1:.3f} | "
+            f"{row.coverage:.3f} | {row.above_threshold_accuracy:.3f} |"
         )
     markdown_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {

@@ -3,34 +3,35 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 import pandas as pd
 
 from ahu_fdd.splits import MODELING_DESIGN_NAMES
+from ahu_fdd.utils import write_json
 
 
-def run_support_report(
-    data_file: Path,
-    splits_file: Path,
-    output_dir: Path,
-    minimum_fault_rows: int = 30,
-) -> dict[str, str]:
+def run_support_report(data_file: Path, splits_file: Path, output_dir: Path, minimum_fault_rows: int = 30) -> dict[str, str]:
+
     data = pd.read_csv(data_file, low_memory=False).reset_index(drop=True)
     assignments = pd.read_csv(splits_file, low_memory=False)
+
     if "row_id" not in assignments or assignments["row_id"].isna().any():
         raise ValueError("Diagnosis support assignments must contain non-null row_id values")
+    
     row_ids = assignments["row_id"].astype(int)
     if (row_ids < 0).any() or (row_ids >= len(data)).any():
         raise ValueError("Diagnosis support assignments contain row IDs outside the input table")
+    
     labels = data["label"].astype("string").str.strip()
     counts = labels.loc[~labels.eq("Normal condition")].value_counts()
     eligible = set(counts[counts >= minimum_fault_rows].index.astype(str))
+
     active = assignments.loc[
         assignments["design"].isin(MODELING_DESIGN_NAMES)
         & assignments["split"].isin(["train", "test"])
     ].copy()
+
     active["fault_type"] = labels.iloc[active["row_id"].astype(int).to_numpy()].to_numpy()
     active = active.loc[active["fault_type"].isin(eligible)]
     group_keys = active[["design", "fold", "building"]].drop_duplicates()
@@ -42,6 +43,7 @@ def run_support_report(
         .rename(columns={"size": "rows"})
     )
     rows: list[dict[str, object]] = []
+    
     for record in grid.to_dict("records"):
         match = counts.loc[
             counts["design"].eq(record["design"])
@@ -84,7 +86,7 @@ def run_support_report(
         "output_files": {"by_split": str(detail_path), "summary": str(summary_path)},
     }
     manifest_path = output_dir / "diagnosis_support_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest, sort_keys=False)
     return {"by_split": str(detail_path), "summary": str(summary_path), "manifest": str(manifest_path)}
 
 

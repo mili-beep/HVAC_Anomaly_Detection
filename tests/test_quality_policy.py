@@ -102,3 +102,86 @@ def test_second_audit_accepts_the_two_declared_outputs() -> None:
     )
     assert retained_summary["checks_passed"] is True
     assert retained_summary["rows_imputed"] == 0
+
+
+def test_second_audit_compares_unchanged_fields_row_by_row() -> None:
+    building_config = load_config(Path("configs/multibuilding_ahu.yaml"))
+    policy_config = load_duplicate_policy(CONFIG)
+    sensors = building_config["canonical_sensor_columns"]
+    raw = pd.DataFrame(
+        [
+            {
+                "building": "office",
+                "ahu": "AHU-01",
+                "timestamp": "2024-01-01 00:00:00",
+                "label": "Normal condition",
+                "source_row_id": 0,
+                **{sensor: 1.0 for sensor in sensors},
+            }
+        ]
+    )
+    cleaned, _, _ = clean_canonical_frame(
+        raw, sensors, "exclude_ambiguous_keys", policy_config
+    )
+    cleaned.loc[0, "label"] = "Changed label"
+    summary, _ = _verify_output(
+        raw, cleaned, sensors, "exclude_ambiguous_keys", policy_config
+    )
+    assert summary["checks_passed"] is False
+    assert summary["unchanged_value_mismatches"] == 1
+    assert "label" in summary["unchanged_mismatch_columns"]
+
+
+def test_second_audit_allows_declared_sensor_conversions() -> None:
+    building_config = load_config(Path("configs/multibuilding_ahu.yaml"))
+    policy_config = load_duplicate_policy(CONFIG)
+    sensors = building_config["canonical_sensor_columns"]
+    raw = pd.DataFrame(
+        [
+            {
+                "building": "hospital",
+                "ahu": "AHU-N01",
+                "timestamp": "2024-01-01 00:00:00",
+                "label": "Normal condition",
+                "source_row_id": 0,
+                **{sensor: 1.0 for sensor in sensors},
+            }
+        ]
+    )
+    raw["return_temperature"] = raw["return_temperature"].astype(object)
+    raw.loc[0, "return_temperature"] = "."
+    cleaned, _, _ = clean_canonical_frame(
+        raw, sensors, "exclude_ambiguous_keys", policy_config
+    )
+    summary, _ = _verify_output(
+        raw, cleaned, sensors, "exclude_ambiguous_keys", policy_config
+    )
+    assert summary["checks_passed"] is True
+    assert summary["sensor_conversion_mismatches"] == 0
+
+
+def test_second_audit_rejects_timestamp_changes() -> None:
+    building_config = load_config(Path("configs/multibuilding_ahu.yaml"))
+    policy_config = load_duplicate_policy(CONFIG)
+    sensors = building_config["canonical_sensor_columns"]
+    raw = pd.DataFrame(
+        [
+            {
+                "building": "office",
+                "ahu": "AHU-01",
+                "timestamp": "2024-01-01 00:00:00",
+                "label": "Normal condition",
+                "source_row_id": 0,
+                **{sensor: 1.0 for sensor in sensors},
+            }
+        ]
+    )
+    cleaned, _, _ = clean_canonical_frame(
+        raw, sensors, "exclude_ambiguous_keys", policy_config
+    )
+    cleaned.loc[0, "timestamp"] = pd.Timestamp("2024-01-01 01:00:00")
+    summary, _ = _verify_output(
+        raw, cleaned, sensors, "exclude_ambiguous_keys", policy_config
+    )
+    assert summary["checks_passed"] is False
+    assert summary["timestamp_mismatches"] == 1

@@ -1,13 +1,9 @@
 # Configuration
 
-`auditorium.yaml` is the single frozen policy for the auditorium source,
-feature roles, cleaning rules, feature engineering and normal-operation
-pattern discovery. Keeping these related declarations together prevents the
-same sensor list from drifting across phase-specific files.
-
-`multibuilding_ahu.yaml` remains separate because it describes source-to-
-canonical mappings for all three buildings rather than the auditorium policy.
-Future building policies should follow the same one-file-per-building pattern.
+`multibuilding_ahu.yaml` is the single source-to-canonical mapping and feature
+role configuration for the auditorium, hospital and office sources. Keeping
+the shared sensor roles in one file prevents the same declaration from drifting
+across phase-specific files.
 
 `evaluation_splits.yaml` contains only evaluation-design settings. It is used
 by `create_evaluation_splits` to freeze the four assignment designs; the
@@ -23,7 +19,7 @@ because these are diagnostic benchmarks, not the final supervised model.
 the normal operating-range rule, Isolation Forest, XGBoost and optional LSTM
 tracks.
 
-`diagnosis.yaml` freezes the XGBoost diagnosis settings and confidence
+`diagnosis.yaml` freezes the XGBoost diagnosis settings and model-score
 threshold used by the Phase 9 exact fault-type comparison. It also records the
 minimum total support required for a fault label to enter diagnosis modelling.
 

@@ -1,39 +1,29 @@
-"""Matched pooled-versus-individual XGBoost building comparisons."""
+"""Matched building-comparison analyses for AHU detection.
+
+This module contains the matched pooled/individual comparison and the separate
+zero-shot directional transfer analysis. Their metrics remain independent;
+only the implementation and command namespace are grouped here.
+"""
 
 from __future__ import annotations
 
 import argparse
-import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from ahu_fdd.baselines import _metric_row, _validate_assignments
-from ahu_fdd.building_detection import _load_inputs
-from ahu_fdd.detection import FoldTransformer, _xgboost, load_detection_config
+from ahu_fdd.building_detection import load_building_inputs
+from ahu_fdd.metrics import binary_metric_row
+from ahu_fdd.modeling import FoldTransformer, load_detection_config, xgboost
+from ahu_fdd.utils import json_safe, write_json
+from ahu_fdd.validation import validate_assignments
 
 MATCHED_DESIGNS = ("building_chronological", "building_ahu_held_out")
 STRATEGIES = ("individual_xgboost", "pooled_adapted_xgboost", "pooled_transfer_xgboost")
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, np.integer):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    return str(value)
 
 
 def _fit_predict(
@@ -44,7 +34,7 @@ def _fit_predict(
     config: dict[str, Any],
 ) -> np.ndarray:
     transformer = FoldTransformer(columns).fit(train_features)
-    return _xgboost(
+    return xgboost(
         transformer.transform(train_features),
         transformer.transform(eval_features),
         y_train,
@@ -63,7 +53,7 @@ def _metric(
     train_rows: int,
     train_buildings: str,
 ) -> dict[str, Any]:
-    row = _metric_row(design, fold, strategy, y_true, predictions)
+    row = binary_metric_row(design, fold, strategy, y_true, predictions)
     row["model"] = row.pop("baseline")
     row.update(
         {
@@ -86,10 +76,10 @@ def run_matched_comparison(
 ) -> dict[str, Any]:
     """Compare local, pooled-adapted and zero-shot models on identical test rows."""
     config = load_detection_config(config_file)
-    data, features, assignments, physical = _load_inputs(
+    data, features, assignments, physical = load_building_inputs(
         data_file, feature_file, feature_manifest_file, splits_file
     )
-    _validate_assignments(assignments, len(data))
+    validate_assignments(assignments, len(data))
     assignments = assignments.loc[assignments["design"].isin(MATCHED_DESIGNS)].copy()
     labels = data["label"].astype("string").str.strip()
     normal_label = str(config["normal_label"]).strip()
@@ -229,7 +219,7 @@ def run_matched_comparison(
     )
     summary_path = output_dir / "matched_building_test_summary.csv"
     summary.to_csv(summary_path, index=False)
-    manifest = _json_safe(
+    manifest = json_safe(
         {
             "schema_version": 1,
             "generated_at": datetime.now().astimezone().isoformat(),
@@ -260,7 +250,7 @@ def run_matched_comparison(
         }
     )
     manifest_path = output_dir / "matched_building_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest)
     lines = [
         "# Matched pooled-versus-individual comparison",
         "",
@@ -307,6 +297,118 @@ def main(argv: Iterable[str] | None = None) -> int:
     )
     print(f"Created matched comparison results in {args.output_dir.resolve()}")
     print(f"Test metrics: {result['test_metrics']}")
+    return 0
+
+
+TRANSFER_PAIRS = (
+    ("auditorium", "office", "single_source"),
+    ("office", "auditorium", "single_source"),
+    ("auditorium+office", "hospital", "multi_source"),
+)
+
+
+def run_directional_transfer(
+    data_file: Path,
+    feature_file: Path,
+    feature_manifest_file: Path,
+    splits_file: Path,
+    output_dir: Path,
+    config_file: Path,
+) -> dict[str, str]:
+    """Evaluate the declared zero-shot source-to-target building transfers."""
+    config = load_detection_config(config_file)
+    data, features, assignments, physical = load_building_inputs(
+        data_file, feature_file, feature_manifest_file, splits_file
+    )
+    validate_assignments(assignments, len(data))
+    chronological = assignments.loc[
+        assignments["design"].eq("building_chronological")
+        & assignments["fold"].eq("fold_001")
+    ]
+    labels = data["label"].astype("string").str.strip()
+    y = (~labels.eq(str(config["normal_label"]).strip())).astype(int)
+    rows: list[dict[str, object]] = []
+    for source, target, transfer_type in TRANSFER_PAIRS:
+        source_buildings = source.split("+")
+        source_train = chronological.loc[
+            chronological["building_scope"].isin(source_buildings)
+            & chronological["split"].eq("train"),
+            "row_id",
+        ].astype(int)
+        target_test = chronological.loc[
+            chronological["building_scope"].eq(target)
+            & chronological["split"].eq("test"),
+            "row_id",
+        ].astype(int)
+        if source_train.empty or target_test.empty:
+            raise ValueError(f"Missing source or target rows for {source} -> {target}")
+        transformer = FoldTransformer(physical).fit(features.iloc[source_train])
+        predictions = xgboost(
+            transformer.transform(features.iloc[source_train]),
+            transformer.transform(features.iloc[target_test]),
+            y.iloc[source_train],
+            config,
+        )
+        row = binary_metric_row(
+            "directional_chronological",
+            "fold_001",
+            "xgboost",
+            y.iloc[target_test],
+            predictions,
+        )
+        row.update(
+            {
+                "source_buildings": source,
+                "target_building": target,
+                "transfer_type": transfer_type,
+                "train_rows": len(source_train),
+                "test_rows": len(target_test),
+                "target_labels_used_for_training": False,
+                "model": row.pop("baseline"),
+            }
+        )
+        rows.append(row)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "directional_transfer_summary.csv"
+    pd.DataFrame(rows).to_csv(output_path, index=False)
+    manifest_path = output_dir / "directional_transfer_manifest.json"
+    write_json(
+        manifest_path,
+        {
+            "schema_version": 1,
+            "design": "building_chronological",
+            "fold": "fold_001",
+            "zero_shot": True,
+            "pairs": [
+                {"source": source, "target": target, "type": transfer_type}
+                for source, target, transfer_type in TRANSFER_PAIRS
+            ],
+            "output_file": str(output_path),
+        },
+        sort_keys=False,
+    )
+    return {"summary": str(output_path), "manifest": str(manifest_path)}
+
+
+def directional_main(argv: Iterable[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Run small zero-shot directional transfer comparison"
+    )
+    parser.add_argument("--data-file", type=Path, required=True)
+    parser.add_argument("--feature-file", type=Path, required=True)
+    parser.add_argument("--feature-manifest", type=Path, required=True)
+    parser.add_argument("--splits-file", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--config", type=Path, default=Path("configs/detection.yaml"))
+    args = parser.parse_args(argv)
+    run_directional_transfer(
+        args.data_file,
+        args.feature_file,
+        args.feature_manifest,
+        args.splits_file,
+        args.output_dir,
+        args.config,
+    )
     return 0
 
 

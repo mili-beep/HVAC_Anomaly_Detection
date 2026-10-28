@@ -50,19 +50,6 @@ audit_multibuilding_ahu \
 The command writes `audit_manifest.json`, `audit_summary.md`,
 `audit_columns.csv`, `audit_missingness.csv`, and `audit_label_counts.csv`.
 
-## Prepare auditorium data under the Phase 2 policy
-
-```bash
-prepare_auditorium_ahu \
-  --data-root /Users/mili/Downloads/27147678 \
-  --output-dir data/processed/auditorium \
-  --policy configs/auditorium.yaml
-```
-
-This creates a sorted, traceable derived table and a preparation manifest. It
-does not impute values or train a model. The manifest records explicit sensor,
-quality, and metadata column groups for later feature selection.
-
 ## Build the Phase 3 canonical table
 
 ```bash
@@ -159,62 +146,6 @@ building/design. It is then refitted on that building's training and validation
 rows and evaluated once on its test rows. See
 [docs/building_specific_detection.md](docs/building_specific_detection.md).
 
-## Clean auditorium data under the Phase 4 policy
-
-First prepare the Phase 2 table, then run:
-
-```bash
-clean_auditorium_ahu \
-  --input-file data/processed/auditorium/auditorium_prepared.csv \
-  --output-dir data/processed/auditorium/phase4 \
-  --config configs/auditorium.yaml
-```
-
-This writes one cleaned master table and a second-audit manifest/summary. It
-does not create model variants or fit an imputer on the full dataset;
-imputation is training-fold-only.
-
-## Engineer auditorium features under the Phase 5 policy
-
-```bash
-engineer_auditorium_features \
-  --input-file data/processed/auditorium/phase4/auditorium_cleaned.csv \
-  --output-dir data/processed/auditorium/phase5 \
-  --config configs/auditorium.yaml
-```
-
-This writes the two model-ready physical and operational variant tables, a
-feature-lineage table, and a shortcut-audit table. See
-[docs/auditorium_phase5_policy.md](docs/auditorium_phase5_policy.md).
-
-## Discover normal-operation patterns
-
-Pattern discovery is a descriptive step for understanding normal operation. It
-uses only rows labelled `Normal condition`; fault labels are excluded from the
-profiles and are not predictors. It produces AHU/mode summaries, hourly and
-monthly profiles, mode transitions, and PCA visualisations:
-
-```bash
-discover_auditorium_patterns \
-  --input-file data/processed/auditorium/phase4/auditorium_cleaned.csv \
-  --output-dir data/processed/auditorium/patterns \
-  --config configs/auditorium.yaml
-```
-
-PCA median-fills values only for the visualisation matrix; this is not the
-training imputation policy. See
-[docs/auditorium_pattern_discovery.md](docs/auditorium_pattern_discovery.md).
-
-## Demonstrate the complete auditorium workflow
-
-After the audit, preparation, cleaning, feature-engineering and pattern
-discovery commands have completed, open
-`notebooks/01_multibuilding_pipeline_walkthrough.ipynb`. It reads the saved
-artefacts and creates report-ready Matplotlib figures for label support,
-missingness, operating modes, feature families, shortcut flags, hourly and
-monthly profiles, and normal-operation PCA. The notebook is a presentation
-layer; the tested Python modules remain the source of truth.
-
 ## Create evaluation splits
 
 Before any model is trained, create the frozen evaluation assignments:
@@ -264,25 +195,6 @@ coverage. Building-specific results are presented separately in
 `notebooks/03_building_detection_results.ipynb`. Neither notebook retrains
 models; they are reproducible presentation layers over the saved results.
 
-## Run detection experiments
-
-After creating the canonical table and frozen split assignments, run the core
-detection comparison:
-
-```bash
-run_detection_experiments \
-  --data-file data/interim/canonical/canonical_ahu.csv \
-  --splits-file data/interim/evaluation_splits/evaluation_splits.csv \
-  --output-dir results/detection \
-  --config configs/detection.yaml \
-  --building-config configs/multibuilding_ahu.yaml
-```
-
-This evaluates the normal operating-range rule, Isolation Forest, XGBoost and LSTM
-autoencoder. TensorFlow is included in the project requirements. If a platform
-cannot install it, the run records the LSTM as unavailable rather than
-substituting another model. See [docs/detection_experiments.md](docs/detection_experiments.md).
-
 ## Run diagnosis experiments
 
 Diagnosis is evaluated separately from binary detection. The default Phase 9
@@ -306,7 +218,7 @@ duplicate-excluded split policy as the headline detection run. It does not
 rebuild a separate in-memory feature set.
 
 The outputs include class and building metrics, confusion matrices, unsupported
-class counts, and row-level confidence/abstention fields. A fault class absent
+class counts, and row-level model-score/abstention fields. A fault class absent
 from a training fold is reported as unsupported rather than being silently
 treated as a normal classification error. Labels with fewer than the configured
 minimum support are excluded from diagnosis only and recorded in the manifest.
@@ -318,13 +230,46 @@ same rows and folds but excludes direct pump, fan, valve and exchanger channels.
 The practical BMS-signal run remains the headline; the sensitivity run tests
 whether exact diagnosis depends on direct equipment-state information.
 
+## Run secondary analyses
+
+These commands generate supporting evidence for the notebooks and report. They
+use the same frozen data, feature manifests and split assignments; they do not
+replace the headline pooled or building-specific runs:
+
+- `run_feature_sensitivity` compares the declared XGBoost feature variants.
+- `report_feature_dependence` audits each feature's held-out univariate AUC.
+- `compare_pooled_building_models` compares individual and pooled models on
+  matched building test rows.
+- `run_directional_transfer` reports the three pre-declared zero-shot
+  source-to-target building transfers.
+- `report_diagnosis_support` reports train/test support and unsupported classes
+  for the diagnosis folds.
+
+Each command writes its own CSV/JSON evidence directory. See the corresponding
+module docstrings and `docs/` pages for required input paths.
+The commands intentionally remain separate so related analyses can be rerun
+without retraining the main models.
+
 ## Showcase operational evidence
 
-Open `notebooks/05_operational_outputs.ipynb` after the detection runs. It
-creates concise evidence cards for facilities staff, showing the building,
-evaluation design, selected model, F1, balanced accuracy, false-positive rate,
-coverage, and the qualification required before operational deployment. It is
-an historical evidence presentation, not a live dashboard.
+After the quality-controlled detection and diagnosis runs, create the
+operational events from the detector's saved row-level predictions:
+
+```bash
+score_ahu_priorities \
+  --predictions results/quality_controlled/exclude_ambiguous_keys/quality_detection_predictions.csv \
+  --diagnosis-predictions results/diagnosis/diagnosis_predictions.csv \
+  --model xgboost \
+  --design chronological \
+  --policy configs/operational_priority.yaml \
+  --output-dir results/operational
+```
+
+The command ignores normal detector rows, groups consecutive detected-alert
+rows into events, and attaches a diagnosis only when a matching row exists.
+Open `notebooks/05_operational_outputs.ipynb` afterwards for concise evidence
+cards for facilities staff. It is an historical evidence presentation, not a
+live dashboard.
 
 The five notebook roles are:
 
@@ -339,14 +284,14 @@ The five notebook roles are:
 After the diagnosis run has completed, open
 `notebooks/04_diagnosis_results.ipynb`. It reads the saved Phase 9 outputs and
 creates report-ready tables and Matplotlib figures for split-level performance,
-fault-type metrics, unsupported classes, confidence coverage, and a grouped-AHU
+fault-type metrics, unsupported classes, model-score coverage, and a grouped-AHU
 confusion matrix. It does not retrain the model.
 
 ## Repository status
 
 Phase 0, the Phase 1 raw-data audit, the Phase 2 data-quality policy, the Phase
 3 canonical ingestion adapter, the Phase 4 quality-controlled cleaning audit,
-the shared Phase 5 feature generator, auditorium normal-operation pattern
+the shared Phase 5 feature generator, multibuilding normal-operation pattern
 discovery, and the evaluation split implementation are complete.
 The three headline detection baselines and the first detection experiment
 runner are now implemented; all model training uses the saved split

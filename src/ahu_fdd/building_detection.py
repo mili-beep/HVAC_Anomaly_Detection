@@ -5,48 +5,27 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from ahu_fdd.baselines import (
-    _metric_row,
-    _normal_range_prediction,
-    _validate_assignments,
-)
-from ahu_fdd.detection import (
+from ahu_fdd.metrics import binary_metric_row
+from ahu_fdd.modeling import (
     MODEL_NAMES,
-    FoldTransformer,
-    _isolation_forest,
-    _lstm_autoencoder,
-    _lstm_available,
-    _xgboost,
     load_detection_config,
+    lstm_available,
+    predict_binary_model,
 )
+from ahu_fdd.utils import json_safe, write_json
+from ahu_fdd.validation import validate_assignments
 
 BUILDING_DESIGNS = ("building_ahu_held_out", "building_chronological")
 
 
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    return str(value)
-
-
-def _load_inputs(
+def load_building_inputs(
     data_file: Path, feature_file: Path, feature_manifest_file: Path, splits_file: Path
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
     data = pd.read_csv(data_file, low_memory=False).reset_index(drop=True)
@@ -77,7 +56,7 @@ def _load_inputs(
         raise ValueError(
             f"Building split assignments are missing columns: {sorted(missing_assignments)}"
         )
-    _validate_assignments(assignments, len(data))
+    validate_assignments(assignments, len(data))
     if not set(assignments["design"].unique()).issubset(BUILDING_DESIGNS):
         raise ValueError("Building split assignments contain an unknown design")
     return data, features, assignments, physical
@@ -132,7 +111,7 @@ def _metric(
         return _empty_metric(building, design, fold, model, stage, len(scored))
     y_scored = y_true.loc[scored_ids]
     prediction_array = np.asarray(predictions)[scored.to_numpy()]
-    row = _metric_row(design, fold, model, y_scored, prediction_array)
+    row = binary_metric_row(design, fold, model, y_scored, prediction_array)
     row["model"] = row.pop("baseline")
     row.update(
         {
@@ -157,42 +136,12 @@ def _predict(
     columns: list[str],
     config: dict[str, Any],
 ) -> tuple[np.ndarray, pd.Series]:
-    if model_name == "normal_range_rule":
-        predictions = _normal_range_prediction(
-            raw_train,
-            raw_eval,
-            y_train,
-            [column.removeprefix("sensor__") for column in columns if column.startswith("sensor__")],
-            config["normal_range_rule"],
-        )
-        return predictions, pd.Series(True, index=raw_eval.index)
-    if model_name == "isolation_forest":
-        transformer = FoldTransformer(columns).fit(feature_train)
-        predictions = _isolation_forest(
-            transformer.transform(feature_train),
-            transformer.transform(feature_eval),
-            y_train,
-            config,
-        )
-        return predictions, pd.Series(True, index=feature_eval.index)
-    if model_name == "xgboost":
-        transformer = FoldTransformer(columns).fit(feature_train)
-        predictions = _xgboost(
-            transformer.transform(feature_train),
-            transformer.transform(feature_eval),
-            y_train,
-            config,
-        )
-        return predictions, pd.Series(True, index=feature_eval.index)
-    sequence_train = feature_train.copy()
-    sequence_eval = feature_eval.copy()
-    if "row_id" not in sequence_train:
-        sequence_train["row_id"] = sequence_train.index.to_numpy()
-    if "row_id" not in sequence_eval:
-        sequence_eval["row_id"] = sequence_eval.index.to_numpy()
-    return _lstm_autoencoder(
-        sequence_train,
-        sequence_eval,
+    return predict_binary_model(
+        model_name,
+        raw_train,
+        raw_eval,
+        feature_train,
+        feature_eval,
         y_train,
         y_eval,
         columns,
@@ -221,7 +170,7 @@ def run_building_detection(
 ) -> dict[str, Any]:
     config = load_detection_config(config_file)
     models = _requested_models(requested_models)
-    data, features, assignments, physical = _load_inputs(
+    data, features, assignments, physical = load_building_inputs(
         data_file, feature_file, feature_manifest_file, splits_file
     )
     labels = data["label"].astype("string").str.strip()
@@ -252,11 +201,11 @@ def run_building_detection(
         feature_train = features.iloc[train_ids]
         feature_validation = features.iloc[validation_ids]
         y_train, y_validation, y_test = y.iloc[train_ids], y.iloc[validation_ids], y.iloc[test_ids]
-        if "lstm_autoencoder" in models and not _lstm_available():
+        if "lstm_autoencoder" in models and not lstm_available():
             statuses.append({"building": building, "design": design, "model": "lstm_autoencoder", "status": "unavailable", "reason": "TensorFlow is not installed"})
         candidates: list[dict[str, Any]] = []
         for model_name in models:
-            if model_name == "lstm_autoencoder" and not _lstm_available():
+            if model_name == "lstm_autoencoder" and not lstm_available():
                 continue
             predictions, scored = _predict(
                 model_name,
@@ -315,7 +264,7 @@ def run_building_detection(
     validation_frame.to_csv(validation_path, index=False)
     test_frame.to_csv(test_path, index=False)
     selected_frame.to_csv(selected_path, index=False)
-    manifest = _json_safe(
+    manifest = json_safe(
         {
             "schema_version": 1,
             "generated_at": datetime.now().astimezone().isoformat(),
@@ -340,7 +289,7 @@ def run_building_detection(
         }
     )
     manifest_path = output_dir / "building_detection_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest)
     lines = [
         "# Building-specific detection results",
         "",

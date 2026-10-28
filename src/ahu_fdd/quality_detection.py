@@ -5,47 +5,26 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from ahu_fdd.baselines import (
-    _metric_row,
-    _normal_range_prediction,
-    _validate_assignments,
-)
-from ahu_fdd.detection import (
+from ahu_fdd.metrics import binary_metric_row
+from ahu_fdd.modeling import (
     MODEL_NAMES,
-    FoldTransformer,
-    _isolation_forest,
-    _lstm_autoencoder,
-    _lstm_available,
-    _xgboost,
     load_detection_config,
+    lstm_available,
+    predict_binary_model,
 )
 from ahu_fdd.splits import (
     DISABLED_MODELING_DESIGN_NAMES,
     MODELING_DESIGN_NAMES,
 )
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    return str(value)
+from ahu_fdd.utils import json_safe, write_json
+from ahu_fdd.validation import validate_assignments
 
 
 def _load_features(
@@ -92,7 +71,7 @@ def run_quality_detection(
         data_file, feature_file, feature_manifest_file
     )
     assignments = pd.read_csv(splits_file, low_memory=False)
-    _validate_assignments(assignments, len(data))
+    validate_assignments(assignments, len(data))
     modeling_assignments = assignments.loc[
         assignments["design"].isin(MODELING_DESIGN_NAMES)
     ].copy()
@@ -103,9 +82,10 @@ def run_quality_detection(
     y = (~labels.eq(normal_label)).astype(int)
 
     metrics: list[dict[str, Any]] = []
+    prediction_rows: list[dict[str, Any]] = []
     statuses: list[dict[str, Any]] = []
     for model_name in models:
-        if model_name == "lstm_autoencoder" and not _lstm_available():
+        if model_name == "lstm_autoencoder" and not lstm_available():
             statuses.append(
                 {
                     "model": model_name,
@@ -125,46 +105,23 @@ def run_quality_detection(
             test_features["row_id"] = test_ids.to_numpy()
             y_train = y.iloc[train_ids]
             y_test = y.iloc[test_ids]
-            if model_name == "normal_range_rule":
-                predictions = _normal_range_prediction(
-                    train_features,
-                    test_features,
-                    y_train,
-                    physical,
-                    config["normal_range_rule"],
-                )
-                scored = pd.Series(True, index=test_features.index)
-            elif model_name == "isolation_forest":
-                transformer = FoldTransformer(physical).fit(train_features)
-                predictions = _isolation_forest(
-                    transformer.transform(train_features),
-                    transformer.transform(test_features),
-                    y_train,
-                    config,
-                )
-                scored = pd.Series(True, index=test_features.index)
-            elif model_name == "xgboost":
-                transformer = FoldTransformer(physical).fit(train_features)
-                predictions = _xgboost(
-                    transformer.transform(train_features),
-                    transformer.transform(test_features),
-                    y_train,
-                    config,
-                )
-                scored = pd.Series(True, index=test_features.index)
-            else:
-                predictions, scored = _lstm_autoencoder(
-                    train_features,
-                    test_features,
-                    y_train,
-                    y_test,
-                    physical,
-                    config,
-                )
+            predictions, scored = predict_binary_model(
+                model_name,
+                train_features,
+                test_features,
+                train_features,
+                test_features,
+                y_train,
+                y_test,
+                physical,
+                config,
+            )
             scored_ids = scored.loc[scored].index
             y_scored = y.loc[scored_ids]
-            prediction_array = np.asarray(predictions)[scored.to_numpy()]
-            row = _metric_row(design, fold, model_name, y_scored, prediction_array)
+            prediction_values = np.asarray(predictions, dtype=int)
+            scored_mask = scored.to_numpy(dtype=bool)
+            prediction_array = prediction_values[scored_mask]
+            row = binary_metric_row(design, fold, model_name, y_scored, prediction_array)
             row.update(
                 {
                     "duplicate_policy": duplicate_policy,
@@ -176,6 +133,25 @@ def run_quality_detection(
             )
             row["model"] = row.pop("baseline")
             metrics.append(row)
+
+            for position, row_id in enumerate(test_ids.to_numpy(dtype=int)):
+                if not scored_mask[position]:
+                    continue
+                source = data.iloc[row_id]
+                prediction_rows.append(
+                    {
+                        "row_id": int(row_id),
+                        "building": str(source["building"]),
+                        "ahu": str(source["ahu"]),
+                        "timestamp": source["timestamp"],
+                        "design": design,
+                        "fold": fold,
+                        "model": model_name,
+                        "duplicate_policy": duplicate_policy,
+                        "prediction": int(prediction_values[position]),
+                        "y_true": int(y.iloc[row_id]),
+                    }
+                )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     fold_frame = pd.DataFrame(metrics)
@@ -198,9 +174,11 @@ def run_quality_detection(
     )
     summary_path = output_dir / "quality_detection_metrics_summary.csv"
     summary.to_csv(summary_path, index=False)
-    manifest = _json_safe(
+    predictions_path = output_dir / "quality_detection_predictions.csv"
+    pd.DataFrame(prediction_rows).to_csv(predictions_path, index=False)
+    manifest = json_safe(
         {
-            "schema_version": 1,
+            "schema_version": 2,
             "generated_at": datetime.now().astimezone().isoformat(),
             "duplicate_policy": duplicate_policy,
             "data_file": str(data_file.expanduser().resolve()),
@@ -214,11 +192,15 @@ def run_quality_detection(
             "model_status": statuses,
             "modeling_designs": list(MODELING_DESIGN_NAMES),
             "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
-            "output_files": {"by_fold": str(fold_path), "summary": str(summary_path)},
+            "output_files": {
+                "by_fold": str(fold_path),
+                "summary": str(summary_path),
+                "predictions": str(predictions_path),
+            },
         }
     )
     manifest_path = output_dir / "quality_detection_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(manifest_path, manifest)
     lines = [
         "# Quality-controlled pooled detection summary",
         "",
@@ -243,6 +225,7 @@ def run_quality_detection(
         "model_status": statuses,
         "fold_metrics": str(fold_path),
         "summary": str(summary_path),
+        "predictions": str(predictions_path),
         "manifest": str(manifest_path),
     }
 

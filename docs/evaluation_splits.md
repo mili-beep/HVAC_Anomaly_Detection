@@ -4,6 +4,11 @@ The repository creates evaluation assignments before model training. The
 assignments are saved in `data/interim/evaluation_splits/evaluation_splits.csv`
 and are not regenerated inside a model run.
 
+Before writing an assignment file, every design/fold is validated for exact
+row coverage, unique row IDs, no partition overlap, and exactly one of
+`train`, `validation` or `test` per expected row. Building-specific files apply
+the same checks within each `building_scope`.
+
 ## Designs
 
 | Design | Question answered | Leakage protection |

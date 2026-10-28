@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +12,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from ahu_fdd.audit import PLACEHOLDER_TOKENS, sha256_file
+from ahu_fdd.utils import placeholder_mask, sha256_file, write_json
 
 COMMON_SOURCE_COLUMNS = {"AHU name", "labeling"}
 
@@ -58,11 +57,6 @@ def _parse_timestamp(frame: pd.DataFrame, spec: dict[str, Any]) -> pd.Series:
     else:
         raw = frame[columns].astype("string").fillna("").agg(" ".join, axis=1)
     return pd.to_datetime(raw, format=timestamp.get("format"), errors="coerce")
-
-
-def _placeholder_mask(series: pd.Series) -> pd.Series:
-    values = series.astype("string").str.strip().str.lower()
-    return values.isin(PLACEHOLDER_TOKENS) & series.notna()
 
 
 def _source_timestamp_text(frame: pd.DataFrame, spec: dict[str, Any]) -> pd.Series:
@@ -110,7 +104,7 @@ def canonicalize_frame(
         values = frame[source] if source is not None else pd.Series(pd.NA, index=frame.index)
         output[canonical] = values
         output[f"is_missing__{canonical}"] = values.isna()
-        output[f"has_placeholder__{canonical}"] = _placeholder_mask(values)
+        output[f"has_placeholder__{canonical}"] = placeholder_mask(values)
 
     output["missing_sensor_count"] = output[
         [f"is_missing__{column}" for column in canonical_sensor_columns]
@@ -148,22 +142,6 @@ def canonicalize_frame(
         "label_counts": output["label"].value_counts(dropna=False).to_dict(),
     }
     return output, metadata
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, (pd.Timestamp, datetime, date)):
-        return value.isoformat()
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if np.isfinite(value) else None
-    if isinstance(value, (np.bool_, bool, str, int)) or value is None:
-        return value
-    return str(value)
 
 
 def ingest_multibuilding(
@@ -206,8 +184,7 @@ def ingest_multibuilding(
     ).reset_index(drop=True)
     output_csv = output_dir / "canonical_ahu.csv"
     combined.to_csv(output_csv, index=False)
-    manifest = _json_safe(
-        {
+    manifest = {
             "schema_version": int(config["schema_version"]),
             "generated_at": datetime.now().astimezone().isoformat(),
             "data_root": str(data_root),
@@ -230,11 +207,8 @@ def ingest_multibuilding(
             "output_file": str(output_csv),
             "config_file": str(config_path.expanduser().resolve()),
         }
-    )
     manifest_path = output_dir / "canonical_ahu_manifest.json"
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    write_json(manifest_path, manifest)
     return manifest
 
 

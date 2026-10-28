@@ -1,8 +1,7 @@
 import pandas as pd
 import pytest
 
-from ahu_fdd.feature_dependence import absolute_roc_auc
-from ahu_fdd.feature_sensitivity import resolve_feature_variants
+from ahu_fdd.feature_analysis import absolute_roc_auc, resolve_feature_variants
 
 
 def test_absolute_roc_auc_counts_inverse_direction() -> None:

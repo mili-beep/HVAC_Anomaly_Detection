@@ -12,6 +12,7 @@ from ahu_fdd.splits import (
     create_evaluation_splits,
     load_split_config,
 )
+from ahu_fdd.validation import validate_assignments
 
 CONFIG = load_split_config(Path("configs/evaluation_splits.yaml"))
 
@@ -121,3 +122,21 @@ def test_grouped_split_rejects_too_few_ahus() -> None:
     )
     with pytest.raises(ValueError, match="at least three AHU groups"):
         _group_holdout(frame, CONFIG, "ahu_held_out")
+
+
+def test_split_validation_requires_exact_row_coverage() -> None:
+    frame = _prepare_frame(_frame())
+    assignments = _chronological(frame, CONFIG)
+    incomplete = assignments.loc[assignments["row_id"].ne(0)].copy()
+    with pytest.raises(ValueError, match="does not cover its expected rows"):
+        validate_assignments(incomplete, len(frame))
+
+
+def test_split_validation_rejects_row_in_two_partitions() -> None:
+    frame = _prepare_frame(_frame())
+    assignments = _chronological(frame, CONFIG)
+    first = assignments.iloc[[0]].copy()
+    first["split"] = "test"
+    invalid = pd.concat([assignments, first], ignore_index=True)
+    with pytest.raises(ValueError, match="duplicate a row"):
+        validate_assignments(invalid, len(frame))

@@ -10,12 +10,12 @@ The frozen baseline includes:
 - `data/interim/evaluation_splits/`;
 - `results/audit/`;
 - `results/baselines/`;
-- `results/detection/`;
 - `results/diagnosis/`;
 - the current notebooks and source code.
 
-The existing transfer results remain reference evidence. New quality-controlled
-outputs belong under `results/quality_controlled/` and new building-specific
+The old raw-feature detection outputs were removed during final cleanup because
+they did not use the current cleaning and duplicate policies. The authoritative
+detection outputs belong under `results/quality_controlled/`; building-specific
 outputs belong under `results/building_specific/`.
 
 The current working tree already contains an intentional user edit to

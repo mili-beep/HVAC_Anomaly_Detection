@@ -22,7 +22,7 @@ the code, configuration, audit artefacts and saved results in this repository.
 | Initial building focus | Auditorium first because it has the broadest fault coverage and cleaner data | Auditorium was audited first, then the same ingestion and modelling design was extended to hospital and office | Both make a defensible staged choice |
 | Unsupervised detection | One-Class SVM, reported at approximately 0.77 | Normal-range rule, Isolation Forest and LSTM autoencoder | The friend has a useful classical comparison; IRPN has a broader declared matrix |
 | Supervised detection | XGBoost with class weighting and randomised search | XGBoost with class weighting and a fixed, pre-declared configuration; model selection uses validation data | Friend has stronger tuning breadth; IRPN has stronger reproducibility unless tuning is nested |
-| Fault diagnosis | Exact fault performance is described mainly through cross-building transfer | Exact fault-type diagnosis with support filtering, per-fold metrics, unsupported-class accounting and confidence abstention | IRPN provides stronger diagnostic evidence |
+| Fault diagnosis | Exact fault performance is described mainly through cross-building transfer | Exact fault-type diagnosis with support filtering, per-fold metrics, unsupported-class accounting and model-score abstention | IRPN provides stronger diagnostic evidence |
 | Leakage control | Explicit comparison of all columns versus a symptoms-only feature set | A default physical-signal feature set plus an operational-context sensitivity; no separate symptoms-only ablation yet | Friend currently has the clearer shortcut test; IRPN should add it |
 | Evaluation split | AHU-held-out split is used to prevent row-level memorisation | Chronological, nested grouped, building-held-out and building-specific AHU-held-out assignments; pooled AHU-held-out is retained but disabled | IRPN tests more deployment conditions |
 | Cross-building testing | Quick directional transfer results are reported | Formal building-held-out results and a matched individual/pooled/transfer comparison use identical target test rows | IRPN is more rigorous, but the friend’s directional framing is useful for communication |
@@ -132,7 +132,7 @@ without target-building adaptation is substantially weaker.
 ### 5. More transparent diagnosis reporting
 
 IRPN records macro and weighted metrics, class support, unsupported rows when a
-class is absent from training, and a 70% confidence rule that can abstain. This
+class is absent from training, and a 70% model-score rule that can abstain. This
 prevents a strong weighted average from hiding poor performance on rare fault
 types.
 
@@ -226,7 +226,7 @@ average, because they answer different operational questions.
 For every building and split, report training, validation and test counts for
 each fault type. Mark a result as unsupported when the class is absent from the
 training fold. Use macro F1 as the primary diagnosis summary and weighted F1 as
-a secondary context measure. Keep the confidence abstention output so staff
+a secondary context measure. Keep the model-score abstention output so staff
 are not given an exact diagnosis for a class the model has not learned
 reliably.
 
@@ -314,7 +314,7 @@ test rows and no overlap between source training and target test identifiers.
 
 Generate per-building and per-fault support tables for the existing exact
 fault-type experiment. Add an explicit “not evaluated” or “unsupported” label
-when a class is absent from the training fold. Keep confidence abstention and
+when a class is absent from the training fold. Keep model-score abstention and
 show coverage alongside macro and weighted scores.
 
 **Acceptance:** no `NaN` diagnosis score is presented without an explanation of
