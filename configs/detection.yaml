@@ -26,6 +26,7 @@ models:
     random_state: 42
   lstm_autoencoder:
     sequence_length: 12
+    sequence_max_gap_hours: 1
     hidden_units: 32
     epochs: 5
     batch_size: 256

@@ -6,6 +6,9 @@ normal_label: Normal condition
 rolling_windows_rows:
   - 3
   - 24
+# The source data are nominally hourly. A gap larger than this starts a new
+# temporal segment; histories never bridge the missing observation.
+temporal_contiguity_max_gap_hours: 1
 rate_max_gap_hours: 2
 
 operational_context:

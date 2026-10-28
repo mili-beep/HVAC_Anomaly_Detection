@@ -20,7 +20,10 @@ training scores, XGBoost class weighting is calculated from training labels,
 and LSTM reconstruction thresholds are fitted from normal training sequences.
 For LSTM evaluation, the first `sequence_length - 1` rows of each test AHU
 stream have no complete within-test history and are reported as unscored rather
-than assigned an artificial prediction.
+than assigned an artificial prediction. Sequence windows also break whenever
+the elapsed time exceeds the configured one-hour cadence; a window can never
+bridge an unobserved timestamp. Past-only rolling features use the same gap
+boundary.
 
 ## Run
 

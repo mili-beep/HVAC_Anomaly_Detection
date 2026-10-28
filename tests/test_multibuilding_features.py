@@ -48,6 +48,20 @@ def test_shared_features_are_past_only_and_grouped_by_building_and_ahu() -> None
     assert set(variants["physical_signal"]).isdisjoint({"label", "ahu", "timestamp"})
 
 
+def test_temporal_features_break_at_timestamp_gaps() -> None:
+    frame = _frame().iloc[:3].copy()
+    frame["timestamp"] = [
+        "2024-01-01 00:00:00",
+        "2024-01-01 01:00:00",
+        "2024-01-01 04:00:00",
+    ]
+    features, _, _ = engineer_multibuilding_features(
+        frame, BUILDING_CONFIG["canonical_sensor_columns"], SETTINGS
+    )
+    assert np.isnan(features["temporal__past_mean_3__return_temperature"].iloc[2])
+    assert np.isnan(features["temporal__past_rate__return_temperature"].iloc[2])
+
+
 def test_operational_context_is_additive_and_labels_are_not_predictors() -> None:
     features, _, variants = engineer_multibuilding_features(
         _frame(), BUILDING_CONFIG["canonical_sensor_columns"], SETTINGS

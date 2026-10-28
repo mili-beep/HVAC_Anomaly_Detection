@@ -27,6 +27,8 @@ def load_feature_settings(path: Path) -> dict[str, Any]:
     windows = config.get("rolling_windows_rows")
     if not isinstance(windows, list) or not windows or any(int(w) < 1 for w in windows):
         raise ValueError("rolling_windows_rows must contain positive window sizes")
+    if float(config.get("temporal_contiguity_max_gap_hours", 0)) <= 0:
+        raise ValueError("temporal_contiguity_max_gap_hours must be positive")
     if float(config.get("rate_max_gap_hours", 0)) <= 0:
         raise ValueError("rate_max_gap_hours must be positive")
     context = config.get("operational_context", {})
@@ -85,11 +87,23 @@ def _add(
     )
 
 
-def _past_rolling(frame: pd.DataFrame, column: str, window: int) -> pd.Series:
+def _past_rolling(
+    frame: pd.DataFrame, column: str, window: int, max_gap_hours: float
+) -> pd.Series:
     result = pd.Series(np.nan, index=frame.index, dtype="float64")
     for _, indices in frame.groupby(["building", "ahu"], sort=False).groups.items():
-        values = _numeric(frame.loc[indices], column)
-        result.loc[indices] = values.shift(1).rolling(window, min_periods=1).mean().to_numpy()
+        group = frame.loc[indices]
+        values = _numeric(group, column)
+        hours = pd.to_datetime(group["timestamp"]).diff().dt.total_seconds().div(3600)
+        breaks = np.flatnonzero(hours.to_numpy()[1:] > max_gap_hours) + 1
+        starts = np.concatenate(([0], breaks))
+        ends = np.concatenate((breaks, [len(group)]))
+        output = np.full(len(group), np.nan, dtype=float)
+        for start, end in zip(starts, ends):
+            output[start:end] = (
+                values.iloc[start:end].shift(1).rolling(window, min_periods=1).mean().to_numpy()
+            )
+        result.loc[indices] = output
     return result
 
 
@@ -134,6 +148,8 @@ def engineer_multibuilding_features(
     variants = {"physical_signal": [], "operational_context": []}
     numeric = {column: _numeric(ordered, column) for column in sensor_columns}
 
+    temporal_gap = float(settings["temporal_contiguity_max_gap_hours"])
+    rate_gap = min(float(settings["rate_max_gap_hours"]), temporal_gap)
     for column in sensor_columns:
         _add(values, lineage, variants, f"sensor__{column}", numeric[column], "raw_sensor", [column], column)
 
@@ -244,7 +260,7 @@ def engineer_multibuilding_features(
                 lineage,
                 variants,
                 f"temporal__past_mean_{window}__{column}",
-                _past_rolling(ordered, column, window),
+                _past_rolling(ordered, column, window, temporal_gap),
                 "past_rolling_mean",
                 [column],
                 f"mean(previous {window} rows of {column})",
@@ -255,10 +271,10 @@ def engineer_multibuilding_features(
             lineage,
             variants,
             f"temporal__past_rate__{column}",
-            _past_rate(ordered, column, float(settings["rate_max_gap_hours"])),
+            _past_rate(ordered, column, rate_gap),
             "past_rate_of_change",
             [column, "timestamp"],
-            f"delta({column}) / elapsed_hours; max_gap={settings['rate_max_gap_hours']}",
+            f"delta({column}) / elapsed_hours; max_gap={rate_gap}",
             past_only=True,
         )
 

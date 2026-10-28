@@ -1,8 +1,14 @@
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
-from ahu_fdd.detection import MODEL_NAMES, build_detection_features, run_detection
+from ahu_fdd.detection import (
+    MODEL_NAMES,
+    _sequence_windows,
+    build_detection_features,
+    run_detection,
+)
 from ahu_fdd.splits import create_evaluation_splits
 
 SENSORS = [
@@ -60,6 +66,30 @@ def test_feature_variants_are_explicit_and_label_free() -> None:
         variants["physical_signal"] + variants["operational_context"]
     )
     assert set(features["row_id"]) == set(range(len(_frame())))
+
+
+def test_lstm_windows_break_at_timestamp_gaps() -> None:
+    frame = pd.DataFrame(
+        {
+            "building": ["auditorium"] * 5,
+            "ahu": ["A-01"] * 5,
+            "timestamp": pd.to_datetime(
+                [
+                    "2024-01-01 00:00",
+                    "2024-01-01 01:00",
+                    "2024-01-01 02:00",
+                    "2024-01-01 05:00",
+                    "2024-01-01 06:00",
+                ]
+            ),
+            "row_id": range(5),
+        }
+    )
+    matrix = np.arange(5, dtype=float).reshape(-1, 1)
+    windows, rows = _sequence_windows(frame, matrix, sequence_length=3, max_gap_hours=1)
+    assert windows.shape == (1, 3, 1)
+    assert rows == [2]
+    assert windows[:, :, 0].tolist() == [[0.0, 1.0, 2.0]]
 
 
 def test_detection_runner_writes_fold_and_summary_outputs(tmp_path: Path) -> None:

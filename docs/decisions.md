@@ -149,6 +149,15 @@ feature table and a manifest are used rather than duplicating the large table;
 the manifest declares both column lists. No imputation was performed, and
 labels were used only by the separate shortcut audit.
 
+## 2026-10-28 — Gap-aware temporal features and sequences
+
+Past-only rolling means and rates now reset at timestamp gaps larger than the
+nominal one-hour cadence. The LSTM sequence builder uses the same boundary and
+constructs windows only within contiguous building/AHU segments. It does not
+fabricate missing rows or carry history across an outage. The gap rule is
+declared in `configs/feature_engineering.yaml` and `configs/detection.yaml`,
+and is covered by unit tests.
+
 ## 2026-10-27 — Auditorium pattern discovery
 
 Normal-operation pattern discovery is a descriptive artefact, separate from

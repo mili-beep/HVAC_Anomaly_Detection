@@ -73,6 +73,11 @@ Run it with:
 
 LSTM and past-only temporal features must break at missing timestamps. They must
 not treat non-consecutive rows as consecutive observations or fabricate rows.
+The shared feature settings use the nominal one-hour cadence as the temporal
+contiguity limit. The LSTM uses the same one-hour limit from
+`configs/detection.yaml`. A complete history is required within one contiguous
+segment; the first rows after a gap are therefore unscored or have missing
+past-only features rather than being filled from across the gap.
 
 ## Step 7 — Create building-specific splits
 

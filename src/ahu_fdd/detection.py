@@ -229,6 +229,40 @@ def _lstm_available() -> bool:
     return True
 
 
+def _sequence_windows(
+    frame: pd.DataFrame,
+    matrix: np.ndarray,
+    sequence_length: int,
+    max_gap_hours: float,
+) -> tuple[np.ndarray, list[int]]:
+    """Create within-AHU windows without crossing a timestamp gap."""
+    if sequence_length < 1:
+        raise ValueError("sequence_length must be positive")
+    if max_gap_hours <= 0:
+        raise ValueError("max_gap_hours must be positive")
+    chunks: list[np.ndarray] = []
+    rows: list[int] = []
+    for _, indices in frame.groupby(["building", "ahu"], sort=False).groups.items():
+        ordered = frame.loc[indices].sort_values(["timestamp", "row_id"], kind="stable")
+        positions = frame.index.get_indexer(ordered.index)
+        timestamps = pd.to_datetime(ordered["timestamp"], errors="coerce")
+        if timestamps.isna().any():
+            raise ValueError("Sequence input contains unparseable timestamps")
+        hours = timestamps.diff().dt.total_seconds().div(3600)
+        breaks = np.flatnonzero(hours.to_numpy()[1:] > max_gap_hours) + 1
+        starts = np.concatenate(([0], breaks))
+        ends = np.concatenate((breaks, [len(positions)]))
+        for start, end in zip(starts, ends):
+            segment = positions[start:end]
+            for offset in range(sequence_length - 1, len(segment)):
+                window_positions = segment[offset - sequence_length + 1 : offset + 1]
+                chunks.append(matrix[window_positions])
+                rows.append(int(segment[offset]))
+    if not chunks:
+        return np.empty((0, sequence_length, matrix.shape[1]), dtype=float), []
+    return np.stack(chunks), rows
+
+
 def _lstm_autoencoder(
     train: pd.DataFrame,
     test: pd.DataFrame,
@@ -253,21 +287,13 @@ def _lstm_autoencoder(
     train_matrix = transformer.transform(train)
     test_matrix = transformer.transform(test)
 
-    def sequences(frame: pd.DataFrame, matrix: np.ndarray) -> tuple[np.ndarray, list[int]]:
-        chunks: list[np.ndarray] = []
-        rows: list[int] = []
-        for _, indices in frame.groupby(["building", "ahu"], sort=False).groups.items():
-            ordered = frame.loc[indices].sort_values(["timestamp", "row_id"], kind="stable")
-            positions = [frame.index.get_loc(index) for index in ordered.index]
-            for end in range(sequence_length - 1, len(positions)):
-                chunks.append(matrix[positions[end - sequence_length + 1 : end + 1]])
-                rows.append(positions[end])
-        if not chunks:
-            return np.empty((0, sequence_length, matrix.shape[1])), []
-        return np.stack(chunks), rows
-
-    train_sequences, _ = sequences(train, train_matrix)
-    test_sequences, test_rows = sequences(test, test_matrix)
+    sequence_gap = float(config["models"]["lstm_autoencoder"].get("sequence_max_gap_hours", 1))
+    train_sequences, _ = _sequence_windows(
+        train, train_matrix, sequence_length, sequence_gap
+    )
+    test_sequences, test_rows = _sequence_windows(
+        test, test_matrix, sequence_length, sequence_gap
+    )
     if len(train_sequences) == 0 or len(test_sequences) == 0:
         return _majority(y_train, len(test)), pd.Series(True, index=test.index)
     maximum = int(config["models"]["lstm_autoencoder"].get("max_train_sequences", 20000))
