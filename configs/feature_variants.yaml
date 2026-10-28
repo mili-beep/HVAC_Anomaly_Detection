@@ -1,0 +1,41 @@
+schema_version: 1
+
+# These are modelling policies, not a second feature-generation implementation.
+# The generated feature manifest supplies the canonical physical-signal columns;
+# this file freezes which of those columns each sensitivity run may use.
+
+default_bms_signals:
+  source_variant: physical_signal
+  description: >-
+    Practical BMS inputs: sensor readings, approved physical relationships and
+    past-only temporal features.
+  expected_source_feature_count: 88
+  excluded_sensor_bases: []
+  excluded_feature_names: []
+
+symptom_only:
+  source_variant: physical_signal
+  description: >-
+    A scientific sensitivity that removes direct actuator, equipment-state and
+    pump-status channels, while retaining measured thermal consequences,
+    relationships and past-only histories of the retained signals.
+  expected_source_feature_count: 88
+  excluded_sensor_bases:
+    - supply_fan
+    - valve_position
+    - heating_exchanger
+    - heating_pump_total
+    - heating_pump_1
+    - heating_pump_2
+    - heating_pump_3
+    - cooling_pump_total
+    - cooling_pump_1
+    - cooling_pump_2
+    - cooling_pump_3
+    - cooling_pump_4
+  excluded_feature_names:
+    - relationship__fan_valve_interaction
+    - relationship__heating_pump_total_residual
+    - relationship__cooling_pump_total_residual
+    - relationship__heating_pump_any_on
+    - relationship__cooling_pump_any_on

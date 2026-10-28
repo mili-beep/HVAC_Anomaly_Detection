@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "design": "building_chronological",
+  "fold": "fold_001",
+  "zero_shot": true,
+  "pairs": [
+    {
+      "source": "auditorium",
+      "target": "office",
+      "type": "single_source"
+    },
+    {
+      "source": "office",
+      "target": "auditorium",
+      "type": "single_source"
+    },
+    {
+      "source": "auditorium+office",
+      "target": "hospital",
+      "type": "multi_source"
+    }
+  ],
+  "output_file": "results/directional_transfer/directional_transfer_summary.csv"
+}

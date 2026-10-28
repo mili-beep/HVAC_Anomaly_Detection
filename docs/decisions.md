@@ -208,3 +208,31 @@ validation rows, the best candidate is selected separately for each
 building/design, and only that selected model is refit with training plus
 validation rows before one final test evaluation. Test scores are never used
 to choose the model.
+
+## 2026-10-29 — Focused XGBoost feature sensitivity
+
+The practical pooled detection headline continues to use the default BMS
+signals. A separate, deliberately small sensitivity experiment compares that
+feature set with `symptom_only`, which excludes direct fan, valve, exchanger and
+pump-state channels and their derived histories/interactions. It runs XGBoost
+only, on the same duplicate-excluded rows and the same active pooled designs:
+chronological, building-held-out and nested-grouped. This is a feature ablation,
+not a fourth baseline and not a replacement for the practical model.
+
+The resolved feature lists and source-count guard are frozen in
+`configs/feature_variants.yaml`; the generated run manifest records the exact
+columns used. The first complete comparison produced 88 default predictors and
+35 symptoms-only predictors. Symptoms-only performance was lower on the
+chronological and nested-grouped designs but higher on the building-held-out
+design, so the practical model remains the headline while the sensitivity is
+reported as evidence about shortcut dependence.
+
+The same checkpoint adds a small zero-shot directional transfer table for
+auditorium-to-office, office-to-auditorium and auditorium-plus-office-to-hospital
+using the chronological fold. It is presented separately from the formal
+building-held-out and matched pooled-versus-individual comparisons.
+
+Diagnosis support is now reported from the saved assignments as a complete
+train/test matrix for every active design, fold, building and eligible fault
+type. A class with no training rows is explicitly marked unsupported rather than
+being interpreted as an ordinary model error.
