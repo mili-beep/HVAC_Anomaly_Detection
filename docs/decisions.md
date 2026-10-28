@@ -248,3 +248,21 @@ is descriptive evidence about individual-feature dependence; it does not rule
 out useful interactions between multiple features. A permutation-importance
 analysis was not added because it would duplicate the existing focused
 feature-ablation comparison without changing the main decision.
+
+## 2026-10-29 — Raw-sensor feature-engineering ablation
+
+The pooled XGBoost sensitivity run was extended with a `raw_sensor_only`
+variant containing the 19 original sensor columns and no derived relationships
+or past-only temporal features. It is compared with the 88-feature practical
+set on the same duplicate-excluded rows and active pooled folds. This isolates
+the contribution of Phase 5 feature engineering without repeating the full
+model suite or immediately duplicating the test for every building. The result
+is reported in Notebook 02; individual-building ablations remain conditional
+on a material or inconsistent pooled effect.
+
+The completed comparison found that the full engineered set improved the
+chronological mean F1 from 0.796 to 0.823, was essentially tied with raw
+sensors under nested grouped testing (0.956 versus 0.958), and was lower on
+building-held-out transfer (0.284 versus 0.495). Feature engineering is
+therefore retained as the practical, pre-declared model input, but the report
+must not claim that derived features improve every generalisation setting.

@@ -42,9 +42,21 @@ def test_feature_variants_remove_direct_state_and_pump_history() -> None:
             "excluded_sensor_bases": ["supply_fan", "heating_pump_1"],
             "excluded_feature_names": ["relationship__fan_valve_interaction"],
         },
+        "raw_sensor_only": {
+            "source_variant": "physical_signal",
+            "expected_source_feature_count": 7,
+            "included_prefixes": ["sensor__"],
+            "excluded_sensor_bases": [],
+            "excluded_feature_names": [],
+        },
     }
     variants = resolve_feature_variants(manifest, config)
     assert len(variants["default_bms_signals"]) == 7
+    assert variants["raw_sensor_only"] == [
+        "sensor__supply_air_temperature",
+        "sensor__supply_fan",
+        "sensor__heating_pump_1",
+    ]
     assert variants["symptom_only"] == [
         "sensor__supply_air_temperature",
         "relationship__supply_return_delta",
@@ -62,6 +74,11 @@ def test_feature_variants_reject_stale_source_count() -> None:
         "symptom_only": {
             "source_variant": "physical_signal",
             "expected_source_feature_count": 88,
+        },
+        "raw_sensor_only": {
+            "source_variant": "physical_signal",
+            "expected_source_feature_count": 88,
+            "included_prefixes": ["sensor__"],
         },
     }
     with pytest.raises(ValueError, match="Frozen source feature count"):

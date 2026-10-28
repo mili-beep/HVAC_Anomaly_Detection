@@ -4,7 +4,7 @@
   "duplicate_policy": "exclude_ambiguous_keys",
   "feature_file": "/Users/mili/Desktop/IRPN/data/interim/features/multibuilding_features.csv",
   "feature_manifest_file": "/Users/mili/Desktop/IRPN/data/interim/features/feature_manifest.json",
-  "generated_at": "2026-10-29T01:12:11.236342+10:30",
+  "generated_at": "2026-10-29T01:44:14.015013+10:30",
   "model": "xgboost",
   "modeling_designs": [
     "chronological",
@@ -108,6 +108,27 @@
       "temporal__past_mean_3__cooling_pump_4",
       "temporal__past_mean_24__cooling_pump_4",
       "temporal__past_rate__cooling_pump_4"
+    ],
+    "raw_sensor_only": [
+      "sensor__setpoint_temperature",
+      "sensor__return_temperature",
+      "sensor__supply_air_temperature",
+      "sensor__supply_fan",
+      "sensor__valve_position",
+      "sensor__heating_exchanger",
+      "sensor__heating_supply_temperature_1",
+      "sensor__heating_supply_temperature_2",
+      "sensor__heating_pump_total",
+      "sensor__heating_pump_1",
+      "sensor__heating_pump_2",
+      "sensor__heating_pump_3",
+      "sensor__cooling_supply_temperature_1",
+      "sensor__cooling_supply_temperature_2",
+      "sensor__cooling_pump_total",
+      "sensor__cooling_pump_1",
+      "sensor__cooling_pump_2",
+      "sensor__cooling_pump_3",
+      "sensor__cooling_pump_4"
     ],
     "symptom_only": [
       "sensor__setpoint_temperature",

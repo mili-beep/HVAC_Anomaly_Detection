@@ -17,7 +17,7 @@ from ahu_fdd.baselines import _metric_row, _validate_assignments
 from ahu_fdd.detection import FoldTransformer, _xgboost, load_detection_config
 from ahu_fdd.splits import MODELING_DESIGN_NAMES
 
-VARIANT_NAMES = ("default_bms_signals", "symptom_only")
+VARIANT_NAMES = ("default_bms_signals", "symptom_only", "raw_sensor_only")
 DIRECT_SENSOR_PREFIX = "sensor__"
 TEMPORAL_PREFIX = "temporal__"
 
@@ -75,17 +75,21 @@ def resolve_feature_variants(
             )
         excluded_bases = set(settings.get("excluded_sensor_bases", []))
         excluded_names = set(settings.get("excluded_feature_names", []))
+        included_prefixes = tuple(settings.get("included_prefixes", []))
         columns = [
             feature
             for feature in source
             if feature not in excluded_names
             and _base_name(feature) not in excluded_bases
         ]
+        if included_prefixes:
+            columns = [feature for feature in columns if feature.startswith(included_prefixes)]
         if not columns:
             raise ValueError(f"Feature variant {variant} resolved to no columns")
         resolved[variant] = columns
-    if set(resolved["symptom_only"]) >= set(resolved["default_bms_signals"]):
-        raise ValueError("symptom_only must be a strict subset of default_bms_signals")
+    for variant in ("symptom_only", "raw_sensor_only"):
+        if set(resolved[variant]) >= set(resolved["default_bms_signals"]):
+            raise ValueError(f"{variant} must be a strict subset of default_bms_signals")
     return resolved
 
 
@@ -207,7 +211,7 @@ def run_feature_sensitivity(
     lines = [
         "# Pooled XGBoost feature sensitivity",
         "",
-        "The default BMS-signal model is the practical headline. Symptoms-only is a feature ablation, not a simple baseline.",
+        "The default BMS-signal model is the practical headline. Raw-sensor-only and symptoms-only are feature ablations, not simple baselines.",
         "",
         "| Variant | Design | Folds | Features | Mean F1 | Mean balanced accuracy | Mean FPR | Test rows |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",

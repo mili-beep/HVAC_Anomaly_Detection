@@ -39,3 +39,15 @@ symptom_only:
     - relationship__cooling_pump_total_residual
     - relationship__heating_pump_any_on
     - relationship__cooling_pump_any_on
+
+raw_sensor_only:
+  source_variant: physical_signal
+  description: >-
+    Feature-engineering ablation containing only the original raw sensor
+    readings. It retains direct sensor channels but removes all derived
+    relationships and past-only temporal features.
+  expected_source_feature_count: 88
+  included_prefixes:
+    - sensor__
+  excluded_sensor_bases: []
+  excluded_feature_names: []
