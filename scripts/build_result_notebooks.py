@@ -209,7 +209,7 @@ def notebook_02() -> None:
             """
             # 02 — Pooled detection results
 
-            This notebook reports only the pooled binary normal-versus-fault experiment. It uses the quality-controlled table with ambiguous duplicate keys excluded as the headline dataset, and the retained-duplicate table only as a pre-declared XGBoost sensitivity check. It does not retrain models.
+            This notebook reports only the pooled binary normal-versus-fault experiment. The primary analysis uses the quality-controlled table with ambiguous duplicate keys excluded. A second table retains and flags duplicate keys solely for a pre-declared XGBoost sensitivity check. This notebook does not retrain models.
 
             The three active pooled split interpretations are chronological, building-held-out and nested-grouped. The pooled AHU-held-out assignment remains saved for traceability but is disabled and is not used here. Individual auditorium, hospital and office results are reported in Notebook 03.
             """
@@ -221,20 +221,27 @@ def notebook_02() -> None:
 BASELINE = ROOT / 'results' / 'quality_controlled' / 'exclude_ambiguous_keys' / 'baselines'
 QUALITY_MAIN = ROOT / 'results' / 'quality_controlled' / 'exclude_ambiguous_keys'
 QUALITY_RETAIN = ROOT / 'results' / 'quality_controlled' / 'retain_flagged_keys'
+CLEANED_MAIN = ROOT / 'data' / 'interim' / 'cleaned' / 'cleaned_ahu.csv'
+CLEANED_RETAIN = ROOT / 'data' / 'interim' / 'cleaned' / 'cleaned_ahu_retain_flagged_keys.csv'
 ACTIVE_DESIGNS = ['chronological', 'building_held_out', 'nested_grouped']
 require(
     BASELINE / 'baseline_metrics_summary.csv',
     QUALITY_MAIN / 'quality_detection_metrics_by_fold.csv', QUALITY_RETAIN / 'quality_detection_metrics_by_fold.csv',
+    CLEANED_MAIN, CLEANED_RETAIN,
 )
 baseline = pd.read_csv(BASELINE / 'baseline_metrics_summary.csv')
 quality_main = pd.read_csv(QUALITY_MAIN / 'quality_detection_metrics_by_fold.csv')
 quality_retain = pd.read_csv(QUALITY_RETAIN / 'quality_detection_metrics_by_fold.csv')
+main_data_rows = len(pd.read_csv(CLEANED_MAIN, usecols=['building']))
+retained_data_rows = len(pd.read_csv(CLEANED_RETAIN, usecols=['building']))
 baseline = baseline[baseline['design'].isin(ACTIVE_DESIGNS)].copy()
 quality_main = quality_main[quality_main['design'].isin(ACTIVE_DESIGNS)].copy()
 quality_retain = quality_retain[quality_retain['design'].isin(ACTIVE_DESIGNS)].copy()
-print('Headline deduplicated rows:', int(quality_main['scored_rows'].max()))
-print('Headline quality-controlled fold rows:', len(quality_main))
-print('Retained-duplicate fold rows:', len(quality_retain))
+print('Observations in primary analysis table (ambiguous duplicate keys removed):', main_data_rows)
+print('Observations in duplicate-sensitivity table (duplicate keys retained and flagged):', retained_data_rows)
+print('Metric records in primary analysis results:', len(quality_main))
+print('Metric records in duplicate-sensitivity results:', len(quality_retain))
+print('A metric record represents one model, split design and fold; it is not a data row.')
 """
         ),
         markdown("## 2. Baseline comparison"),
@@ -260,7 +267,7 @@ plt.show()
         ),
         markdown(
             """
-            These baselines are evaluated on the same deduplicated table and active split assignments as the headline models. The majority classifier is a lower bound, the normal-range rule is transparent, and the actuator/pump-only baseline tests whether a small control subset is sufficient. The split-specific panels avoid treating different generalisation questions as one interchangeable score.
+            These baselines are evaluated on the same duplicate-excluded table and active split assignments as the primary models. The majority classifier is a lower bound, the normal-range rule is transparent, and the actuator/pump-only baseline tests whether a small control subset is sufficient. The split-specific panels avoid treating different generalisation questions as one interchangeable score.
             """
         ),
         markdown("## 3. Main pooled model comparison"),
@@ -332,14 +339,14 @@ plt.show()
         markdown("## 5. Interpretation of pooled results"),
         markdown(
             """
-            The deduplicated run is the headline pooled result. The retained-duplicate run is a sensitivity analysis, not a second opportunity to select a more favourable model. The results describe performance under these labelled historical buildings and split designs; they do not establish production performance without target-building calibration.
+            The duplicate-excluded run is the primary pooled result. The duplicate-retained run is a sensitivity analysis, not a second opportunity to select a more favourable model. The results describe performance under these labelled historical buildings and split designs; they do not establish production performance without target-building calibration.
             """
         ),
         markdown("## 6. What this notebook does and does not establish"),
         code(
             """
 conclusions = pd.DataFrame([
-    ['Dataset policy', 'Deduplicated table is the headline; retained duplicates are sensitivity only', 'The duplicate decision is visible and not chosen after inspecting scores'],
+    ['Dataset policy', 'Duplicate-excluded table is primary; retained duplicates are sensitivity only', 'The duplicate decision is visible and not chosen after inspecting scores'],
     ['Model selection', 'XGBoost is the main supervised comparison', 'Other models remain useful as methodological references'],
     ['Generalisation', 'Scores vary by split design', 'Temporal and cross-building transfer should not be conflated'],
     ['Deployment', 'Historical test evidence only', 'Target-building calibration and monitoring are still required'],
