@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -63,7 +64,9 @@ def test_diagnosis_runner_writes_auditable_outputs(tmp_path: Path) -> None:
     data_file = tmp_path / "canonical.csv"
     splits_dir = tmp_path / "splits"
     output_dir = tmp_path / "diagnosis"
-    _frame().to_csv(data_file, index=False)
+    frame = _frame()
+    frame.loc[0, "label"] = "Single example fault"
+    frame.to_csv(data_file, index=False)
     create_evaluation_splits(
         data_file, splits_dir, Path("configs/evaluation_splits.yaml")
     )
@@ -82,4 +85,7 @@ def test_diagnosis_runner_writes_auditable_outputs(tmp_path: Path) -> None:
     assert "predicted_group" not in predictions
     assert (output_dir / "diagnosis_predictions.csv").is_file()
     assert (output_dir / "diagnosis_manifest.json").is_file()
+    manifest = json.loads((output_dir / "diagnosis_manifest.json").read_text())
+    assert manifest["excluded_fault_labels"] == {"Single example fault": 1}
+    assert manifest["eligible_fault_row_count"] == manifest["fault_row_count"] - 1
     assert result["markdown"].endswith("diagnosis_summary.md")

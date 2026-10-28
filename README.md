@@ -217,7 +217,9 @@ run_diagnosis_experiments \
 The outputs include class and building metrics, confusion matrices, unsupported
 class counts, and row-level confidence/abstention fields. A fault class absent
 from a training fold is reported as unsupported rather than being silently
-treated as a normal classification error. See
+treated as a normal classification error. Labels with fewer than the configured
+minimum support are excluded from diagnosis only and recorded in the manifest.
+See
 [docs/diagnosis_experiments.md](docs/diagnosis_experiments.md).
 
 ## Showcase diagnosis results

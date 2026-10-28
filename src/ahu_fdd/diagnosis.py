@@ -40,6 +40,9 @@ def load_diagnosis_config(path: Path) -> dict[str, Any]:
     threshold = float(config.get("confidence_threshold", 0))
     if not 0 < threshold < 1:
         raise ValueError("confidence_threshold must be between zero and one")
+    minimum_fault_rows = int(config.get("minimum_fault_rows", 0))
+    if minimum_fault_rows < 1:
+        raise ValueError("minimum_fault_rows must be at least one")
     variants = config.get("feature_variants", ["physical_signal"])
     if not isinstance(variants, list) or not variants:
         raise ValueError("feature_variants must be a non-empty list")
@@ -47,6 +50,7 @@ def load_diagnosis_config(path: Path) -> dict[str, Any]:
     if not isinstance(model, dict):
         raise ValueError("The diagnosis configuration must define model settings")
     config["confidence_threshold"] = threshold
+    config["minimum_fault_rows"] = minimum_fault_rows
     config["feature_variants"] = [str(value) for value in variants]
     return config
 
@@ -253,6 +257,13 @@ def run_diagnosis(
     if labels.isna().any():
         raise ValueError("Diagnosis input contains missing labels")
     fault_mask = ~labels.eq(normal_label)
+    minimum_fault_rows = int(config["minimum_fault_rows"])
+    fault_counts = labels.loc[fault_mask].value_counts()
+    excluded_fault_labels = sorted(
+        fault_counts[fault_counts < minimum_fault_rows].index.astype(str).tolist()
+    )
+    excluded_fault_rows = int(fault_counts.reindex(excluded_fault_labels, fill_value=0).sum())
+    diagnosis_mask = fault_mask & ~labels.isin(excluded_fault_labels)
 
     summary: list[dict[str, Any]] = []
     class_rows: list[dict[str, Any]] = []
@@ -266,8 +277,8 @@ def run_diagnosis(
                 continue
             train_ids = assignment.loc[assignment["split"].eq("train"), "row_id"].astype(int)
             test_ids = assignment.loc[assignment["split"].eq("test"), "row_id"].astype(int)
-            train_fault_ids = train_ids[fault_mask.iloc[train_ids].to_numpy()]
-            test_fault_ids = test_ids[fault_mask.iloc[test_ids].to_numpy()]
+            train_fault_ids = train_ids[diagnosis_mask.iloc[train_ids].to_numpy()]
+            test_fault_ids = test_ids[diagnosis_mask.iloc[test_ids].to_numpy()]
             train_all = features.iloc[train_ids]
             train_fault = features.iloc[train_fault_ids]
             test_fault = features.iloc[test_fault_ids]
@@ -319,6 +330,8 @@ def run_diagnosis(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     summary_frame = pd.DataFrame(summary)
+    summary_frame["minimum_fault_rows"] = minimum_fault_rows
+    summary_frame["excluded_fault_rows"] = excluded_fault_rows
     summary_path = output_dir / "diagnosis_metrics_summary.csv"
     summary_frame.to_csv(summary_path, index=False)
     class_path = output_dir / "diagnosis_metrics_by_class.csv"
@@ -340,8 +353,14 @@ def run_diagnosis(
             "building_config_file": str(building_config_path.expanduser().resolve()),
             "row_count": int(len(data)),
             "fault_row_count": int(fault_mask.sum()),
+            "eligible_fault_row_count": int(diagnosis_mask.sum()),
+            "excluded_fault_row_count": excluded_fault_rows,
+            "excluded_fault_labels": {
+                label: int(fault_counts[label]) for label in excluded_fault_labels
+            },
             "normal_label": normal_label,
             "confidence_threshold": threshold,
+            "minimum_fault_rows": minimum_fault_rows,
             "designs": designs,
             "feature_variants": config["feature_variants"],
             "output_files": {
@@ -366,6 +385,8 @@ def run_diagnosis(
         "",
         "Exact fault-type diagnosis is evaluated on fault-labelled rows only; normal-versus-fault detection is a separate task.",
         "Confidence is the maximum XGBoost class score, with abstention below the configured threshold.",
+        f"Fault types with fewer than {minimum_fault_rows} labelled rows are excluded from diagnosis: "
+        f"{', '.join(excluded_fault_labels) if excluded_fault_labels else 'none'}.",
         "",
         "| Design | Variant | Task | Folds | Evaluated rows | Unsupported rows | Macro F1 | Coverage | Confident accuracy |",
         "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",

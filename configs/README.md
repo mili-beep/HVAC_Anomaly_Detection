@@ -22,4 +22,5 @@ the normal operating-range rule, Isolation Forest, XGBoost and optional LSTM
 tracks.
 
 `diagnosis.yaml` freezes the XGBoost diagnosis settings and confidence
-threshold used by the Phase 9 exact fault-type comparison.
+threshold used by the Phase 9 exact fault-type comparison. It also records the
+minimum total support required for a fault label to enter diagnosis modelling.
