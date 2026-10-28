@@ -84,8 +84,8 @@ baseline and XGBoost are compared on identical folds.
 
 ## 2026-10-27 — Detection model comparison matrix
 
-The detection comparison uses the statistical normal envelope, Isolation Forest,
-XGBoost and an LSTM autoencoder. The statistical envelope and LSTM use the
+The detection comparison uses the normal operating-range rule, Isolation Forest,
+XGBoost and an LSTM autoencoder. The normal operating-range rule and LSTM use the
 physical-signal track; Isolation Forest and XGBoost are tested with both the
 physical-signal and operational-context variants. Every method consumes the
 same frozen AHU-held-out, chronological, building-held-out and nested grouped

@@ -20,12 +20,12 @@ from xgboost import XGBClassifier
 
 from ahu_fdd.baselines import (
     _metric_row,
-    _normal_envelope_prediction,
+    _normal_range_prediction,
     _validate_assignments,
 )
 
 MODEL_NAMES = (
-    "statistical_envelope",
+    "normal_range_rule",
     "isolation_forest",
     "xgboost",
     "lstm_autoencoder",
@@ -338,7 +338,7 @@ def run_detection(
         if model_name == "lstm_autoencoder" and not _lstm_available():
             statuses.append({"model": model_name, "status": "unavailable", "reason": "TensorFlow is not installed"})
             continue
-        model_variants = ["physical_signal"] if model_name in {"statistical_envelope", "lstm_autoencoder"} else list(VARIANT_NAMES)
+        model_variants = ["physical_signal"] if model_name in {"normal_range_rule", "lstm_autoencoder"} else list(VARIANT_NAMES)
         for variant in model_variants:
             for (design, fold), assignment in assignments.groupby(["design", "fold"], sort=True):
                 train_ids = assignment.loc[assignment["split"].eq("train"), "row_id"].astype(int)
@@ -348,9 +348,9 @@ def run_detection(
                 y_train = y.iloc[train_ids]
                 y_test = y.iloc[test_ids]
                 columns = variants[variant]
-                if model_name == "statistical_envelope":
-                    predictions = _normal_envelope_prediction(
-                        data.iloc[train_ids], data.iloc[test_ids], y_train, sensors, config["statistical_envelope"]
+                if model_name == "normal_range_rule":
+                    predictions = _normal_range_prediction(
+                        data.iloc[train_ids], data.iloc[test_ids], y_train, sensors, config["normal_range_rule"]
                     )
                     scored = pd.Series(True, index=test_ids)
                 elif model_name == "isolation_forest":

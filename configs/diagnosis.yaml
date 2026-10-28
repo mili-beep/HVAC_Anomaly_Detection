@@ -1,0 +1,35 @@
+schema_version: 1
+normal_label: Normal condition
+confidence_threshold: 0.70
+
+# Diagnosis is evaluated on fault-labelled rows only. Binary detection remains
+# a separate task that decides whether a row is normal or faulty.
+fault_groups:
+  pump:
+    - Heating pump fault
+    - Cooling pump fault
+  fan:
+    - Supply fan fault
+  valve:
+    - Valve position fault
+  thermal:
+    - Return air temperature fault
+    - Supply air temperature fault
+    - Cooling supply temperature fault
+
+model:
+  n_estimators: 200
+  max_depth: 6
+  learning_rate: 0.05
+  subsample: 0.8
+  colsample_bytree: 0.8
+  objective: multi:softprob
+  eval_metric: mlogloss
+  tree_method: hist
+  n_jobs: 2
+  random_state: 42
+
+# Physical signals are the headline diagnosis features. Operational context
+# can be enabled later as a declared sensitivity comparison.
+feature_variants:
+  - physical_signal

@@ -79,7 +79,7 @@ def test_detection_runner_writes_fold_and_summary_outputs(tmp_path: Path) -> Non
     )
     summary = pd.read_csv(output_dir / "detection_metrics_summary.csv")
     assert set(result["models_requested"]) == set(MODEL_NAMES)
-    assert {"statistical_envelope", "isolation_forest", "xgboost"} <= set(summary["model"])
+    assert {"normal_range_rule", "isolation_forest", "xgboost"} <= set(summary["model"])
     assert set(summary["variant"]) == {"physical_signal", "operational_context"}
     assert (output_dir / "detection_manifest.json").is_file()
     assert (output_dir / "detection_summary.md").is_file()

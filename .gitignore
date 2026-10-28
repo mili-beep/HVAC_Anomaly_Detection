@@ -16,6 +16,7 @@ results/runs/*
 results/baselines/*
 results/detection/*
 results/detection_lstm/*
+results/diagnosis/*
 results/figures/*
 
 # Keep directory documentation in the repository.

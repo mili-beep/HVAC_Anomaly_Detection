@@ -35,6 +35,7 @@ discover_auditorium_patterns = "ahu_fdd.patterns:main"
 create_evaluation_splits = "ahu_fdd.splits:main"
 evaluate_detection_baselines = "ahu_fdd.baselines:main"
 run_detection_experiments = "ahu_fdd.detection:main"
+run_diagnosis_experiments = "ahu_fdd.diagnosis:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ahu_fdd"]

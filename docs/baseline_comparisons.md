@@ -7,16 +7,16 @@ fold-level metrics.
 | Baseline | What it tells us |
 | --- | --- |
 | `majority_class` | The minimum benchmark obtained by always predicting the most common training class. |
-| `normal_envelope_rule` | Whether a transparent range rule can detect values outside the normal training envelope. |
+| `normal_range_rule` | Whether a transparent range rule can detect values outside the normal operating range learned from normal training rows. |
 | `actuator_pump_only` | How much useful signal exists in fan, valve and pump measurements. |
 
-The normal-envelope rule uses the complete configured physical sensor set. The
+The normal operating-range rule uses the complete configured physical sensor set. The
 published-label distribution, missingness-only and temperature-only diagnostics
 were excluded from the headline table: the first duplicates the majority
 class, the second is a data-quality diagnostic rather than a physical detector,
-and the third is redundant with the envelope comparison. Missingness remains
+and the third is redundant with the normal-range comparison. Missingness remains
 visible in the raw audit and operational-context sensitivity analysis. The
-normal-envelope quantiles are fitted using normal rows in the training fold
+normal-range quantiles are fitted using normal rows in the training fold
 only. The actuator/pump logistic baseline fits medians, scaling and coefficients
 on training rows only.
 

@@ -154,7 +154,7 @@ assignments rather than creating new random row splits.
 
 The baseline comparison uses the frozen assignments and evaluates three
 complementary references: a majority-class lower bound, a transparent normal
-envelope rule, and actuator/pump-only evidence. Missingness remains visible in
+normal operating-range rule, and actuator/pump-only evidence. Missingness remains visible in
 the audit and operational-context sensitivity results rather than being used as
 a headline detector.
 
@@ -194,10 +194,31 @@ run_detection_experiments \
   --building-config configs/multibuilding_ahu.yaml
 ```
 
-This evaluates the statistical envelope, Isolation Forest, XGBoost and LSTM
+This evaluates the normal operating-range rule, Isolation Forest, XGBoost and LSTM
 autoencoder. TensorFlow is included in the project requirements. If a platform
 cannot install it, the run records the LSTM as unavailable rather than
 substituting another model. See [docs/detection_experiments.md](docs/detection_experiments.md).
+
+## Run diagnosis experiments
+
+Diagnosis is evaluated separately from binary detection. The default Phase 9
+run uses physical-signal features and compares flat fault-type classification
+with hierarchical fault-group and within-group fault-type classification:
+
+```bash
+run_diagnosis_experiments \
+  --data-file data/interim/canonical/canonical_ahu.csv \
+  --splits-file data/interim/evaluation_splits/evaluation_splits.csv \
+  --output-dir results/diagnosis \
+  --config configs/diagnosis.yaml \
+  --building-config configs/multibuilding_ahu.yaml
+```
+
+The outputs include class and building metrics, confusion matrices, unsupported
+class counts, and row-level confidence/abstention fields. A fault class absent
+from a training fold is reported as unsupported rather than being silently
+treated as a normal classification error. See
+[docs/diagnosis_experiments.md](docs/diagnosis_experiments.md).
 
 ## Repository status
 

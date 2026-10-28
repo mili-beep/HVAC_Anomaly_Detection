@@ -370,7 +370,7 @@ Establish whether machine learning adds value beyond simple alternatives.
 ### Baselines
 
 1. Majority-class predictor.
-2. Simple normal-envelope rule.
+2. Simple normal operating-range rule.
 3. Actuator/pump-only classifier.
 
 The published-label distribution baseline is not included as a separate run:
@@ -426,6 +426,11 @@ Evaluate exact fault classification and broader fault-group diagnosis separately
 - per-class and per-building metrics;
 - rare-class sensitivity analysis;
 - confusion-matrix interpretation.
+
+The implemented headline runner uses XGBoost with physical-signal features.
+Normal-versus-fault detection remains a separate task. Fault classes missing
+from a training fold are recorded as unsupported and excluded from ordinary
+classification metrics rather than being reported as misleading poor scores.
 
 ### Rules
 

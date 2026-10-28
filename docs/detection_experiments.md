@@ -4,7 +4,7 @@ The detection runner compares four methods under a frozen evaluation protocol:
 
 | Method | Training data | Feature variants |
 | --- | --- | --- |
-| `statistical_envelope` | Normal training rows define the 1st–99th percentile envelope | Physical signal; the rule is feature-independent |
+| `normal_range_rule` | Normal training rows define the 1st–99th percentile operating range | Physical signal; the rule is feature-independent |
 | `isolation_forest` | Normal training rows only | Physical signal and operational context |
 | `xgboost` | Labelled training rows | Physical signal and operational context |
 | `lstm_autoencoder` | Normal training sequences only | Physical signal |

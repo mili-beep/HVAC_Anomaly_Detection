@@ -18,4 +18,9 @@ and their feature groups. It is kept separate from model configurations
 because these are diagnostic benchmarks, not the final supervised model.
 
 `detection.yaml` freezes the model settings and detection thresholds used by
-the statistical envelope, Isolation Forest, XGBoost and optional LSTM tracks.
+the normal operating-range rule, Isolation Forest, XGBoost and optional LSTM
+tracks.
+
+`diagnosis.yaml` freezes the fault-group mapping, XGBoost diagnosis settings,
+and confidence threshold used by the Phase 9 flat and hierarchical diagnosis
+comparisons.

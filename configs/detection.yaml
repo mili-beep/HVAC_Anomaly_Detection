@@ -1,13 +1,12 @@
 schema_version: 1
 normal_label: Normal condition
 
-statistical_envelope:
-  normal_envelope_rule:
-    lower_quantile: 0.01
-    upper_quantile: 0.99
+normal_range_rule:
+  lower_quantile: 0.01
+  upper_quantile: 0.99
 
 models:
-  statistical_envelope: {}
+  normal_range_rule: {}
   isolation_forest:
     n_estimators: 150
     max_samples: 2048

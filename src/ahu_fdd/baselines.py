@@ -25,7 +25,7 @@ from sklearn.preprocessing import StandardScaler
 
 BASELINE_NAMES = (
     "majority_class",
-    "normal_envelope_rule",
+    "normal_range_rule",
     "actuator_pump_only",
 )
 
@@ -39,7 +39,7 @@ def load_baseline_config(path: Path) -> dict[str, Any]:
     groups = config.get("feature_groups")
     if not isinstance(groups, dict) or not groups:
         raise ValueError("The baseline configuration must define feature_groups")
-    rule = config.get("normal_envelope_rule", {})
+    rule = config.get("normal_range_rule", {})
     for key in ("lower_quantile", "upper_quantile"):
         value = float(rule.get(key, -1))
         if not 0 <= value <= 1:
@@ -108,7 +108,7 @@ def _fit_logistic(
     return model.predict(test_matrix[usable]).astype(int)
 
 
-def _normal_envelope_prediction(
+def _normal_range_prediction(
     train: pd.DataFrame,
     test: pd.DataFrame,
     y_train: pd.Series,
@@ -119,8 +119,8 @@ def _normal_envelope_prediction(
     usable = _usable_columns(normal, columns)
     if normal.empty or not usable:
         return _majority_prediction(y_train, len(test))
-    lower_q = float(config["normal_envelope_rule"]["lower_quantile"])
-    upper_q = float(config["normal_envelope_rule"]["upper_quantile"])
+    lower_q = float(config["lower_quantile"])
+    upper_q = float(config["upper_quantile"])
     normal_values = _numeric(normal, usable)
     lower = normal_values.quantile(lower_q)
     upper = normal_values.quantile(upper_q)
@@ -229,8 +229,8 @@ def run_baselines(
         y_test = y.iloc[test_ids]
         predictions = {
             "majority_class": _majority_prediction(y_train, len(test)),
-            "normal_envelope_rule": _normal_envelope_prediction(
-                train, test, y_train, all_sensors, config
+            "normal_range_rule": _normal_range_prediction(
+                train, test, y_train, all_sensors, config["normal_range_rule"]
             ),
             "actuator_pump_only": _fit_logistic(
                 train, test, y_train, list(groups["actuator_pump"])
