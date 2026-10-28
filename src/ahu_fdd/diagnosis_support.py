@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from ahu_fdd.splits import MODELING_DESIGN_NAMES
+
 
 def run_support_report(
     data_file: Path,
@@ -25,7 +27,10 @@ def run_support_report(
     labels = data["label"].astype("string").str.strip()
     counts = labels.loc[~labels.eq("Normal condition")].value_counts()
     eligible = set(counts[counts >= minimum_fault_rows].index.astype(str))
-    active = assignments.loc[assignments["split"].isin(["train", "test"])].copy()
+    active = assignments.loc[
+        assignments["design"].isin(MODELING_DESIGN_NAMES)
+        & assignments["split"].isin(["train", "test"])
+    ].copy()
     active["fault_type"] = labels.iloc[active["row_id"].astype(int).to_numpy()].to_numpy()
     active = active.loc[active["fault_type"].isin(eligible)]
     group_keys = active[["design", "fold", "building"]].drop_duplicates()
