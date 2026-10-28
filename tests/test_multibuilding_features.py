@@ -87,6 +87,23 @@ def test_duplicate_keys_are_rejected() -> None:
         raise AssertionError("Duplicate keys must be rejected")
 
 
+def test_duplicate_keys_can_be_retained_without_crossing_temporal_history() -> None:
+    frame = _frame().iloc[:3].copy()
+    frame["timestamp"] = [
+        "2024-01-01 00:00:00",
+        "2024-01-01 01:00:00",
+        "2024-01-01 01:00:00",
+    ]
+    frame["duplicate_ahu_timestamp"] = True
+    features, _, _ = engineer_multibuilding_features(
+        frame,
+        BUILDING_CONFIG["canonical_sensor_columns"],
+        SETTINGS,
+        allow_duplicate_keys=True,
+    )
+    assert features["temporal__past_mean_3__return_temperature"].isna().all()
+
+
 def test_multibuilding_command_writes_one_table_and_manifest(tmp_path: Path) -> None:
     input_file = tmp_path / "cleaned.csv"
     output_dir = tmp_path / "features"

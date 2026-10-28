@@ -43,3 +43,9 @@ The canonical sensor list remains in `multibuilding_ahu.yaml`. The
 `engineer_multibuilding_features` command creates one feature table plus a
 manifest that declares the default physical-signal and secondary
 operational-context column lists.
+
+`evaluation_splits.yaml` is shared by the frozen pooled splits and the new
+building-specific splits. `create_building_splits` creates independent
+auditorium, hospital and office assignments. `create_quality_splits` creates
+pooled assignments for a cleaned duplicate policy and keeps duplicate keys
+together in chronological folds.

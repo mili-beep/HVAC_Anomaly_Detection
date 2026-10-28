@@ -21,6 +21,7 @@ DESIGN_NAMES = (
     "building_held_out",
     "nested_grouped",
 )
+BUILDING_DESIGN_NAMES = ("building_ahu_held_out", "building_chronological")
 
 
 def load_split_config(path: Path) -> dict[str, Any]:
@@ -138,7 +139,12 @@ def _group_holdout(
     return _assignments(frame, design, "fold_001", split)
 
 
-def _chronological(frame: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
+def _chronological(
+    frame: pd.DataFrame,
+    config: dict[str, Any],
+    *,
+    keep_duplicate_keys_together: bool = False,
+) -> pd.DataFrame:
     """Split each building/AHU stream into past, validation and future rows."""
     test_fraction = float(config["test_fraction"])
     validation_fraction = float(config["validation_fraction"])
@@ -146,13 +152,28 @@ def _chronological(frame: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
     for _, indices in frame.groupby("_group_key", sort=True).groups.items():
         ordered = frame.loc[indices].sort_values(["timestamp", "_row_id"], kind="stable")
         count = len(ordered)
-        train_end = int(count * (1 - validation_fraction - test_fraction))
-        validation_end = int(count * (1 - test_fraction))
-        if train_end < 1 or validation_end <= train_end or validation_end >= count:
+        train_target = int(count * (1 - validation_fraction - test_fraction))
+        validation_target = int(count * (1 - test_fraction))
+        if train_target < 1 or validation_target <= train_target or validation_target >= count:
             raise ValueError("chronological splitting requires at least three rows per AHU")
-        split.loc[ordered.index[:train_end]] = "train"
-        split.loc[ordered.index[train_end:validation_end]] = "validation"
-        split.loc[ordered.index[validation_end:]] = "test"
+        if not keep_duplicate_keys_together:
+            split.loc[ordered.index[:train_target]] = "train"
+            split.loc[ordered.index[train_target:validation_target]] = "validation"
+            split.loc[ordered.index[validation_target:]] = "test"
+            continue
+        key_columns = ["building", "ahu", "timestamp"]
+        groups = ordered.groupby(key_columns, sort=False, dropna=False)
+        cumulative = 0
+        for _, group in groups:
+            next_cumulative = cumulative + len(group)
+            if next_cumulative <= train_target:
+                partition = "train"
+            elif next_cumulative <= validation_target:
+                partition = "validation"
+            else:
+                partition = "test"
+            split.loc[group.index] = partition
+            cumulative = next_cumulative
     return _assignments(frame, "chronological", "fold_001", split)
 
 
@@ -212,13 +233,19 @@ def _nested_grouped(frame: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame
 
 
 def create_evaluation_splits(
-    input_file: Path, output_dir: Path, config_path: Path
+    input_file: Path,
+    output_dir: Path,
+    config_path: Path,
+    *,
+    keep_duplicate_keys_together: bool = False,
 ) -> dict[str, Any]:
     config = load_split_config(config_path)
     frame = _prepare_frame(pd.read_csv(input_file, low_memory=False))
     outputs = [
         _group_holdout(frame, config, "ahu_held_out"),
-        _chronological(frame, config),
+        _chronological(
+            frame, config, keep_duplicate_keys_together=keep_duplicate_keys_together
+        ),
         _building_held_out(frame),
         _nested_grouped(frame, config),
     ]
@@ -247,6 +274,7 @@ def create_evaluation_splits(
             "row_count": int(len(frame)),
             "group_definition": "building::ahu",
             "designs": list(DESIGN_NAMES),
+            "keep_duplicate_keys_together": keep_duplicate_keys_together,
             "fold_summaries": fold_summaries,
             "output_file": str(output_csv),
         }
@@ -279,6 +307,86 @@ def create_evaluation_splits(
     }
 
 
+def create_building_specific_splits(
+    input_file: Path, output_dir: Path, config_path: Path
+) -> dict[str, Any]:
+    """Create independent within-building AHU and chronological assignments."""
+    config = load_split_config(config_path)
+    frame = _prepare_frame(pd.read_csv(input_file, low_memory=False))
+    outputs: list[pd.DataFrame] = []
+    for building, building_frame in frame.groupby("building", sort=True):
+        ahu_split = _group_holdout(building_frame, config, "building_ahu_held_out")
+        chronological = _chronological(
+            building_frame, config, keep_duplicate_keys_together=True
+        )
+        for assignments in (ahu_split, chronological):
+            assignments = assignments.copy()
+            assignments["design"] = assignments["design"].map(
+                {
+                    "building_ahu_held_out": "building_ahu_held_out",
+                    "chronological": "building_chronological",
+                }
+            )
+            assignments["building_scope"] = building
+            outputs.append(assignments)
+    assignments = pd.concat(outputs, ignore_index=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_csv = output_dir / "building_splits.csv"
+    assignments.to_csv(output_csv, index=False)
+    fold_summaries: list[dict[str, Any]] = []
+    for (building, design, fold), group in assignments.groupby(
+        ["building_scope", "design", "fold"], sort=True
+    ):
+        fold_summaries.append(
+            {
+                "building": building,
+                "design": design,
+                "fold": fold,
+                "row_counts": group["split"].value_counts().to_dict(),
+                "group_counts": group.groupby("split")["group_key"].nunique().to_dict(),
+            }
+        )
+    manifest = _json_safe(
+        {
+            "schema_version": 1,
+            "generated_at": datetime.now().astimezone().isoformat(),
+            "input_file": str(input_file.expanduser().resolve()),
+            "config_file": str(config_path.expanduser().resolve()),
+            "row_count": int(len(frame)),
+            "building_designs": list(BUILDING_DESIGN_NAMES),
+            "buildings": sorted(frame["building"].unique()),
+            "fold_summaries": fold_summaries,
+            "output_file": str(output_csv),
+        }
+    )
+    manifest_path = output_dir / "building_split_manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    lines = [
+        "# Building-specific split summary",
+        "",
+        "Each building is split independently. AHU groups remain wholly within one partition.",
+        "",
+        "| Building | Design | Fold | Train rows | Validation rows | Test rows |",
+        "| --- | --- | --- | ---: | ---: | ---: |",
+    ]
+    for item in fold_summaries:
+        counts = item["row_counts"]
+        lines.append(
+            f"| {item['building']} | {item['design']} | {item['fold']} | "
+            f"{counts.get('train', 0):,} | {counts.get('validation', 0):,} | "
+            f"{counts.get('test', 0):,} |"
+        )
+    summary_path = output_dir / "building_split_summary.md"
+    summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return {
+        "output_file": str(output_csv),
+        "manifest_file": str(manifest_path),
+        "summary_file": str(summary_path),
+        "row_count": int(len(frame)),
+        "designs": list(BUILDING_DESIGN_NAMES),
+    }
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Create leakage-safe AHU evaluation splits")
     parser.add_argument("--input-file", type=Path, required=True)
@@ -289,6 +397,47 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parser.parse_args(argv)
     result = create_evaluation_splits(args.input_file, args.output_dir, args.config)
     print(f"Created {result['row_count']:,} row assignments in {args.output_dir.resolve()}")
+    return 0
+
+
+def building_main(argv: Iterable[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Create independent AHU and chronological splits per building"
+    )
+    parser.add_argument("--input-file", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, default=Path("data/interim/building_splits"))
+    parser.add_argument(
+        "--config", type=Path, default=Path("configs/evaluation_splits.yaml")
+    )
+    args = parser.parse_args(argv)
+    result = create_building_specific_splits(args.input_file, args.output_dir, args.config)
+    print(
+        f"Created {result['row_count']:,} building-specific row assignments in "
+        f"{args.output_dir.resolve()}"
+    )
+    return 0
+
+
+def quality_main(argv: Iterable[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Create quality-controlled pooled evaluation assignments"
+    )
+    parser.add_argument("--input-file", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--config", type=Path, default=Path("configs/evaluation_splits.yaml")
+    )
+    args = parser.parse_args(argv)
+    result = create_evaluation_splits(
+        args.input_file,
+        args.output_dir,
+        args.config,
+        keep_duplicate_keys_together=True,
+    )
+    print(
+        f"Created {result['row_count']:,} quality-controlled row assignments in "
+        f"{args.output_dir.resolve()}"
+    )
     return 0
 
 

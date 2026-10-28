@@ -249,7 +249,13 @@ def _sequence_windows(
         if timestamps.isna().any():
             raise ValueError("Sequence input contains unparseable timestamps")
         hours = timestamps.diff().dt.total_seconds().div(3600)
-        breaks = np.flatnonzero(hours.to_numpy()[1:] > max_gap_hours) + 1
+        duplicate = frame.loc[ordered.index].get(
+            "duplicate_ahu_timestamp", pd.Series(False, index=ordered.index)
+        ).astype(bool)
+        boundary = hours.gt(max_gap_hours) | hours.le(0) | duplicate | duplicate.shift(
+            1, fill_value=False
+        )
+        breaks = np.flatnonzero(boundary.to_numpy()[1:]) + 1
         starts = np.concatenate(([0], breaks))
         ends = np.concatenate((breaks, [len(positions)]))
         for start, end in zip(starts, ends):
@@ -295,7 +301,7 @@ def _lstm_autoencoder(
         test, test_matrix, sequence_length, sequence_gap
     )
     if len(train_sequences) == 0 or len(test_sequences) == 0:
-        return _majority(y_train, len(test)), pd.Series(True, index=test.index)
+        return _majority(y_train, len(test)), pd.Series(False, index=test.index)
     maximum = int(config["models"]["lstm_autoencoder"].get("max_train_sequences", 20000))
     if len(train_sequences) > maximum:
         rng = np.random.default_rng(int(config["models"]["lstm_autoencoder"]["random_state"]))

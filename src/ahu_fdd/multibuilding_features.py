@@ -95,7 +95,13 @@ def _past_rolling(
         group = frame.loc[indices]
         values = _numeric(group, column)
         hours = pd.to_datetime(group["timestamp"]).diff().dt.total_seconds().div(3600)
-        breaks = np.flatnonzero(hours.to_numpy()[1:] > max_gap_hours) + 1
+        duplicate = group.get(
+            "duplicate_ahu_timestamp", pd.Series(False, index=group.index)
+        ).astype(bool)
+        boundary = hours.gt(max_gap_hours) | hours.le(0) | duplicate | duplicate.shift(
+            1, fill_value=False
+        )
+        breaks = np.flatnonzero(boundary.to_numpy()[1:]) + 1
         starts = np.concatenate(([0], breaks))
         ends = np.concatenate((breaks, [len(group)]))
         output = np.full(len(group), np.nan, dtype=float)
@@ -113,9 +119,19 @@ def _past_rate(frame: pd.DataFrame, column: str, max_gap_hours: float) -> pd.Ser
         group = frame.loc[indices]
         values = _numeric(group, column)
         timestamps = pd.to_datetime(group["timestamp"])
+        duplicate = group.get(
+            "duplicate_ahu_timestamp", pd.Series(False, index=group.index)
+        ).astype(bool)
         previous = values.shift(1)
         hours = timestamps.diff().dt.total_seconds().div(3600)
-        valid = hours.gt(0) & hours.le(max_gap_hours) & values.notna() & previous.notna()
+        valid = (
+            hours.gt(0)
+            & hours.le(max_gap_hours)
+            & values.notna()
+            & previous.notna()
+            & ~duplicate
+            & ~duplicate.shift(1, fill_value=False)
+        )
         result.loc[indices] = ((values - previous).div(hours).where(valid)).to_numpy()
     return result
 
@@ -124,6 +140,8 @@ def engineer_multibuilding_features(
     frame: pd.DataFrame,
     sensor_columns: list[str],
     settings: dict[str, Any],
+    *,
+    allow_duplicate_keys: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, list[str]]]:
     """Generate the same physical/context features for every building.
 
@@ -139,7 +157,7 @@ def engineer_multibuilding_features(
     if ordered["timestamp"].isna().any():
         raise ValueError("Feature input contains unparseable timestamps")
     key_columns = ["building", "ahu", "timestamp"]
-    if ordered.duplicated(key_columns, keep=False).any():
+    if ordered.duplicated(key_columns, keep=False).any() and not allow_duplicate_keys:
         raise ValueError("Feature input contains duplicate building/AHU/timestamp keys")
     ordered = ordered.sort_values(key_columns + ["source_row_id"], kind="stable").reset_index(drop=True)
 
@@ -418,12 +436,15 @@ def engineer_multibuilding(
     output_dir: Path,
     building_config_path: Path,
     feature_config_path: Path,
+    allow_duplicate_keys: bool = False,
 ) -> dict[str, Any]:
     building_config = load_config(building_config_path)
     settings = load_feature_settings(feature_config_path)
     sensors = list(building_config["canonical_sensor_columns"])
     frame = pd.read_csv(input_file, low_memory=False)
-    features, lineage, variants = engineer_multibuilding_features(frame, sensors, settings)
+    features, lineage, variants = engineer_multibuilding_features(
+        frame, sensors, settings, allow_duplicate_keys=allow_duplicate_keys
+    )
     audit = shortcut_audit(features, lineage, variants, str(settings["normal_label"]))
     output_dir.mkdir(parents=True, exist_ok=True)
     feature_path = output_dir / "multibuilding_features.csv"
@@ -448,6 +469,7 @@ def engineer_multibuilding(
             "shortcut_audit_file": str(audit_path),
             "output_file": str(feature_path),
             "label_used_only_for_audit": True,
+            "allow_duplicate_keys": allow_duplicate_keys,
             "past_only_features_verified": bool(lineage.loc[lineage["past_only"], "past_only"].all()),
         }
     )
@@ -480,9 +502,18 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path, default=Path("data/interim/features"))
     parser.add_argument("--building-config", type=Path, default=Path("configs/multibuilding_ahu.yaml"))
     parser.add_argument("--feature-config", type=Path, default=Path("configs/feature_engineering.yaml"))
+    parser.add_argument(
+        "--allow-duplicate-keys",
+        action="store_true",
+        help="Retain flagged duplicate keys for the declared sensitivity policy",
+    )
     args = parser.parse_args(argv)
     manifest = engineer_multibuilding(
-        args.input_file, args.output_dir, args.building_config, args.feature_config
+        args.input_file,
+        args.output_dir,
+        args.building_config,
+        args.feature_config,
+        args.allow_duplicate_keys,
     )
     print(
         f"Generated {manifest['feature_counts']['physical_signal']:,} default and "

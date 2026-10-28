@@ -85,10 +85,20 @@ Generate AHU-held-out and chronological train/validation/test assignments
 independently for auditorium, office and hospital. No building-specific split
 may contain rows from another building.
 
+Run it with:
+
+    create_building_splits \
+      --input-file data/interim/cleaned/cleaned_ahu.csv \
+      --output-dir data/interim/building_splits \
+      --config configs/evaluation_splits.yaml
+
 ## Step 8 — Re-run pooled quality-controlled models
 
 Run the normal-range rule, Isolation Forest, XGBoost and LSTM using the default
 features under both duplicate policies. Record metrics and LSTM coverage.
+Generate a matched quality split table for each policy with
+`create_quality_splits`, then run `run_quality_detection`. Existing results are
+not overwritten; outputs belong under `results/quality_controlled/`.
 
 ## Step 9 — Run independent building models
 

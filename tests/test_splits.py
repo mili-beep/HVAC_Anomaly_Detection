@@ -91,6 +91,30 @@ def test_split_command_writes_one_assignment_table_and_manifest(tmp_path: Path) 
     assert (output_dir / "evaluation_split_summary.md").is_file()
 
 
+def test_quality_splits_keep_duplicate_keys_together(tmp_path: Path) -> None:
+    frame = _frame()
+    duplicate = frame.iloc[[0]].copy()
+    duplicate["timestamp"] = frame.iloc[0]["timestamp"]
+    quality_input = pd.concat([frame, duplicate], ignore_index=True)
+    input_file = tmp_path / "cleaned.csv"
+    output_dir = tmp_path / "quality_splits"
+    quality_input.to_csv(input_file, index=False)
+    create_evaluation_splits(
+        input_file,
+        output_dir,
+        Path("configs/evaluation_splits.yaml"),
+        keep_duplicate_keys_together=True,
+    )
+    assignments = pd.read_csv(output_dir / "evaluation_splits.csv")
+    chronological = assignments.loc[assignments["design"].eq("chronological")]
+    duplicate_rows = chronological.loc[
+        chronological["building"].eq("auditorium")
+        & chronological["ahu"].eq("AHU-1")
+        & chronological["timestamp"].eq("2024-01-01")
+    ]
+    assert duplicate_rows["split"].nunique() == 1
+
+
 def test_grouped_split_rejects_too_few_ahus() -> None:
     frame = _prepare_frame(
         _frame().query("building == 'auditorium' and ahu != 'AHU-3'")

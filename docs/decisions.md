@@ -168,3 +168,23 @@ visualisations. Fault rows are excluded from these profiles, and labels are not
 used as model inputs. PCA uses deterministic per-mode sampling and median
 filling only to create a two-dimensional visualisation; it must not be treated
 as the Phase 4 training-fold imputation policy.
+
+## 2026-10-28 — Building-specific split assignments
+
+Building-specific modelling is evaluated independently for auditorium, office,
+and hospital. Each building receives its own AHU-held-out and chronological
+assignments; no assignment mixes buildings. These assignments are written to
+`data/interim/building_splits/` and do not replace the frozen pooled or
+building-transfer assignments.
+
+## 2026-10-28 — Quality-controlled pooled detection
+
+The four detection methods (normal-range rule, Isolation Forest, XGBoost and
+the LSTM autoencoder) were rerun on the cleaned master table under both frozen
+duplicate policies. Headline inputs use the default physical-signal feature
+variant and fold-local preprocessing. The main policy excludes ambiguous
+duplicate keys; the sensitivity policy retains and flags them. Outputs are
+stored separately under `results/quality_controlled/` so earlier experiments
+remain reproducible and unchanged. LSTM coverage is reported explicitly when
+gaps prevent a complete sequence; rows without a valid sequence are not
+silently treated as normal.

@@ -97,6 +97,48 @@ lineage and a shortcut audit. No imputation is performed here; later model
 folds fit imputers on training rows only. See
 [docs/multibuilding_feature_engineering.md](docs/multibuilding_feature_engineering.md).
 
+## Create building-specific splits
+
+```bash
+create_building_splits \
+  --input-file data/interim/cleaned/cleaned_ahu.csv \
+  --output-dir data/interim/building_splits \
+  --config configs/evaluation_splits.yaml
+```
+
+This creates independent AHU-held-out and chronological assignments for each
+building without changing the frozen pooled assignments.
+
+## Run quality-controlled pooled detection
+
+Create matched pooled assignments for each duplicate policy, keeping duplicate
+timestamp keys together in a chronological partition:
+
+```bash
+create_quality_splits \
+  --input-file data/interim/cleaned/cleaned_ahu.csv \
+  --output-dir data/interim/quality_splits/exclude_ambiguous_keys \
+  --config configs/evaluation_splits.yaml
+```
+
+Run the four detection methods on the main cleaned table:
+
+```bash
+run_quality_detection \
+  --data-file data/interim/cleaned/cleaned_ahu.csv \
+  --feature-file data/interim/features/multibuilding_features.csv \
+  --feature-manifest data/interim/features/feature_manifest.json \
+  --splits-file data/interim/quality_splits/exclude_ambiguous_keys/evaluation_splits.csv \
+  --output-dir results/quality_controlled/exclude_ambiguous_keys \
+  --duplicate-policy exclude_ambiguous_keys
+```
+
+Repeat the same commands with the retained cleaned table, retained feature
+directory and `retain_flagged_keys` output directory for the duplicate-policy
+sensitivity comparison. See
+[docs/quality_detection.md](docs/quality_detection.md) for the complete
+command set and interpretation of coverage.
+
 ## Clean auditorium data under the Phase 4 policy
 
 First prepare the Phase 2 table, then run:

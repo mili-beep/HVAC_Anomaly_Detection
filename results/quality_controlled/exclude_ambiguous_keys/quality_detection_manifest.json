@@ -1,0 +1,23 @@
+{
+  "config_file": "/Users/mili/Desktop/IRPN/configs/detection.yaml",
+  "data_file": "/Users/mili/Desktop/IRPN/data/interim/cleaned/cleaned_ahu.csv",
+  "duplicate_policy": "exclude_ambiguous_keys",
+  "feature_file": "/Users/mili/Desktop/IRPN/data/interim/features/multibuilding_features.csv",
+  "feature_manifest_file": "/Users/mili/Desktop/IRPN/data/interim/features/feature_manifest.json",
+  "generated_at": "2026-10-28T22:40:33.198107+10:30",
+  "model_status": [],
+  "models_requested": [
+    "normal_range_rule",
+    "isolation_forest",
+    "xgboost",
+    "lstm_autoencoder"
+  ],
+  "output_files": {
+    "by_fold": "results/quality_controlled/exclude_ambiguous_keys/quality_detection_metrics_by_fold.csv",
+    "summary": "results/quality_controlled/exclude_ambiguous_keys/quality_detection_metrics_summary.csv"
+  },
+  "physical_feature_count": 88,
+  "row_count": 354587,
+  "schema_version": 1,
+  "splits_file": "/Users/mili/Desktop/IRPN/data/interim/quality_splits/exclude_ambiguous_keys/evaluation_splits.csv"
+}
