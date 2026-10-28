@@ -169,6 +169,16 @@ The output contains fold metrics, a summary table, a manifest and a readable
 Markdown comparison. Imputation is fitted inside each training fold; no test
 labels or test values are used to choose thresholds.
 
+## Showcase baseline and model results
+
+After the baseline and detection commands have completed, open
+`notebooks/02_detection_results.ipynb`. It loads the saved metrics and creates
+report-ready tables and Matplotlib figures for all five baselines, all four
+detection models, physical-versus-operational feature variants, every frozen
+split design, false-positive rates, and LSTM scoring coverage. It does not
+retrain models; it is a reproducible presentation layer over the saved
+results.
+
 ## Run detection experiments
 
 After creating the canonical table and frozen split assignments, run the core
