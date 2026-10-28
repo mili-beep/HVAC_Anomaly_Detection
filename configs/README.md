@@ -10,8 +10,10 @@ canonical mappings for all three buildings rather than the auditorium policy.
 Future building policies should follow the same one-file-per-building pattern.
 
 `evaluation_splits.yaml` contains only evaluation-design settings. It is used
-by `create_evaluation_splits` to freeze the four leakage-safe split designs;
-it does not contain model hyperparameters.
+by `create_evaluation_splits` to freeze the four assignment designs; the
+pooled `ahu_held_out` assignment is retained for traceability but disabled for
+current model runs. The active pooled designs are chronological,
+building-held-out and nested-grouped. It does not contain model hyperparameters.
 
 `baselines.yaml` defines the three headline transparent detection comparisons
 and their feature groups. It is kept separate from model configurations

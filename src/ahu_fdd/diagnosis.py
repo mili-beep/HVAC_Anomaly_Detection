@@ -27,8 +27,12 @@ from ahu_fdd.detection import (
     build_detection_features,
     load_sensor_config,
 )
+from ahu_fdd.splits import (
+    DISABLED_MODELING_DESIGN_NAMES,
+    MODELING_DESIGN_NAMES,
+)
 
-DESIGN_NAMES = ("chronological", "building_held_out", "nested_grouped")
+DESIGN_NAMES = MODELING_DESIGN_NAMES
 
 
 def load_diagnosis_config(path: Path) -> dict[str, Any]:
@@ -362,6 +366,7 @@ def run_diagnosis(
             "confidence_threshold": threshold,
             "minimum_fault_rows": minimum_fault_rows,
             "designs": designs,
+            "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
             "feature_variants": config["feature_variants"],
             "output_files": {
                 "summary": str(summary_path),

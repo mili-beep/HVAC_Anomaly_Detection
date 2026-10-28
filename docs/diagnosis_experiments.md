@@ -15,9 +15,9 @@ The runner evaluates:
 - a fixed 0.70 confidence threshold and abstention/coverage metrics.
 
 Diagnosis uses the chronological, nested-grouped and building-held-out split
-designs. The single AHU-held-out split is retained for supplementary detection
-analysis but is not repeated as a Phase 9 diagnosis result because the
-nested-grouped design provides the stronger repeated unseen-AHU assessment.
+designs. The pooled AHU-held-out assignment is retained in the split artefact
+but disabled for current modelling; the nested-grouped design provides the
+stronger repeated unseen-AHU assessment.
 
 The default headline feature variant is `physical_signal`. The confidence value
 is the maximum XGBoost class score, not a calibrated probability. The report

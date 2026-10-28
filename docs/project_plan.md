@@ -336,6 +336,9 @@ Ensure the reported scores measure generalisation rather than memorisation.
 
 Train on some AHUs and test on unseen AHUs in the same building.
 
+The pooled assignment is retained for traceability but is currently disabled
+from headline modelling. The separate building-specific version remains active.
+
 #### Design B: Chronological evaluation
 
 Train on earlier observations and test on later observations.

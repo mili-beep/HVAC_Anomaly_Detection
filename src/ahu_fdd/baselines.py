@@ -23,6 +23,11 @@ from sklearn.metrics import (
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from ahu_fdd.splits import (
+    DISABLED_MODELING_DESIGN_NAMES,
+    MODELING_DESIGN_NAMES,
+)
+
 BASELINE_NAMES = (
     "majority_class",
     "normal_range_rule",
@@ -205,6 +210,9 @@ def run_baselines(
     data = pd.read_csv(data_file, low_memory=False).reset_index(drop=True)
     assignments = pd.read_csv(splits_file, low_memory=False)
     _validate_assignments(assignments, len(data))
+    modeling_assignments = assignments.loc[
+        assignments["design"].isin(MODELING_DESIGN_NAMES)
+    ].copy()
     if "label" not in data:
         raise ValueError("Baseline input must contain the canonical label column")
     normal_label = str(config["normal_label"]).strip()
@@ -219,7 +227,9 @@ def run_baselines(
         raise ValueError(f"Baseline input is missing configured sensors: {sorted(missing_sensors)}")
 
     metrics: list[dict[str, Any]] = []
-    for (design, fold), assignment in assignments.groupby(["design", "fold"], sort=True):
+    for (design, fold), assignment in modeling_assignments.groupby(
+        ["design", "fold"], sort=True
+    ):
         row_ids = assignment["row_id"].astype(int)
         train_ids = assignment.loc[assignment["split"].eq("train"), "row_id"].astype(int)
         test_ids = assignment.loc[assignment["split"].eq("test"), "row_id"].astype(int)
@@ -271,6 +281,8 @@ def run_baselines(
             "row_count": int(len(data)),
             "normal_label": normal_label,
             "baseline_names": list(BASELINE_NAMES),
+            "modeling_designs": list(MODELING_DESIGN_NAMES),
+            "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
             "output_files": {"by_fold": str(fold_path), "summary": str(summary_path)},
         }
     )

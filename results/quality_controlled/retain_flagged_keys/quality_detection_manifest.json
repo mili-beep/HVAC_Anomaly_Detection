@@ -1,11 +1,19 @@
 {
   "config_file": "/Users/mili/Desktop/IRPN/configs/detection.yaml",
   "data_file": "/Users/mili/Desktop/IRPN/data/interim/cleaned/cleaned_ahu_retain_flagged_keys.csv",
+  "disabled_modeling_designs": [
+    "ahu_held_out"
+  ],
   "duplicate_policy": "retain_flagged_keys",
   "feature_file": "/Users/mili/Desktop/IRPN/data/interim/features/retain_flagged_keys/multibuilding_features.csv",
   "feature_manifest_file": "/Users/mili/Desktop/IRPN/data/interim/features/retain_flagged_keys/feature_manifest.json",
-  "generated_at": "2026-10-28T22:46:01.659689+10:30",
+  "generated_at": "2026-10-28T23:46:03.418001+10:30",
   "model_status": [],
+  "modeling_designs": [
+    "chronological",
+    "building_held_out",
+    "nested_grouped"
+  ],
   "models_requested": [
     "normal_range_rule",
     "isolation_forest",

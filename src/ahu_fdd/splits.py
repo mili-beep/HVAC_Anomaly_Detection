@@ -21,6 +21,11 @@ DESIGN_NAMES = (
     "building_held_out",
     "nested_grouped",
 )
+# ``ahu_held_out`` remains in the saved assignment table for traceability, but
+# is deliberately disabled for the current pooled headline experiments.  The
+# active designs below are the only designs that pooled runners may execute.
+MODELING_DESIGN_NAMES = ("chronological", "building_held_out", "nested_grouped")
+DISABLED_MODELING_DESIGN_NAMES = ("ahu_held_out",)
 BUILDING_DESIGN_NAMES = ("building_ahu_held_out", "building_chronological")
 
 
@@ -274,6 +279,8 @@ def create_evaluation_splits(
             "row_count": int(len(frame)),
             "group_definition": "building::ahu",
             "designs": list(DESIGN_NAMES),
+            "modeling_designs": list(MODELING_DESIGN_NAMES),
+            "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
             "keep_duplicate_keys_together": keep_duplicate_keys_together,
             "fold_summaries": fold_summaries,
             "output_file": str(output_csv),
@@ -287,6 +294,8 @@ def create_evaluation_splits(
         "",
         "The assignments are generated without random row-level headline splits.",
         "Every assignment is grouped by `building::ahu` where the design requires grouping.",
+        "The pooled `ahu_held_out` assignment is retained for traceability but is disabled for current model runs.",
+        "Active pooled designs: `chronological`, `building_held_out`, `nested_grouped`.",
         "",
         "| Design | Fold | Train rows | Validation rows | Test rows |", 
         "| --- | --- | ---: | ---: | ---: |",
@@ -304,6 +313,8 @@ def create_evaluation_splits(
         "summary_file": str(summary_path),
         "row_count": int(len(frame)),
         "designs": list(DESIGN_NAMES),
+        "modeling_designs": list(MODELING_DESIGN_NAMES),
+        "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
     }
 
 

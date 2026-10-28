@@ -211,7 +211,7 @@ def notebook_02() -> None:
 
             This notebook presents the binary normal-versus-fault detection evidence. It does not retrain models. It compares the earlier pooled results with the quality-controlled rerun, shows the duplicate-policy sensitivity, and then reports the separate auditorium, hospital and office models.
 
-            The default headline feature track is the physical-signal variant. Operational-context features appear only once as a secondary sensitivity comparison in the earlier pooled results.
+            The default headline feature track is the physical-signal variant. Operational-context features appear only once as a secondary sensitivity comparison in the earlier pooled results. The saved `ahu_held_out` assignment is intentionally excluded because it is currently disabled for pooled headline modelling; the separate `building_ahu_held_out` building-specific experiment remains in scope.
             """
         ),
         code(COMMON),
@@ -223,6 +223,7 @@ OLD = ROOT / 'results' / 'detection'
 QUALITY_MAIN = ROOT / 'results' / 'quality_controlled' / 'exclude_ambiguous_keys'
 QUALITY_RETAIN = ROOT / 'results' / 'quality_controlled' / 'retain_flagged_keys'
 BUILDING = ROOT / 'results' / 'building_specific'
+ACTIVE_DESIGNS = ['chronological', 'building_held_out', 'nested_grouped']
 require(
     BASELINE / 'baseline_metrics_summary.csv', OLD / 'detection_metrics_summary.csv',
     QUALITY_MAIN / 'quality_detection_metrics_by_fold.csv', QUALITY_RETAIN / 'quality_detection_metrics_by_fold.csv',
@@ -234,6 +235,13 @@ quality_main = pd.read_csv(QUALITY_MAIN / 'quality_detection_metrics_by_fold.csv
 quality_retain = pd.read_csv(QUALITY_RETAIN / 'quality_detection_metrics_by_fold.csv')
 building_validation = pd.read_csv(BUILDING / 'building_detection_validation_metrics.csv')
 building_test = pd.read_csv(BUILDING / 'building_detection_test_metrics.csv')
+# ``ahu_held_out`` remains in the assignment artefact for traceability, but is
+# disabled for current pooled headline modelling. Building-specific held-out
+# results below are a separate within-building experiment.
+baseline = baseline[baseline['design'].isin(ACTIVE_DESIGNS)].copy()
+old_detection = old_detection[old_detection['design'].isin(ACTIVE_DESIGNS)].copy()
+quality_main = quality_main[quality_main['design'].isin(ACTIVE_DESIGNS)].copy()
+quality_retain = quality_retain[quality_retain['design'].isin(ACTIVE_DESIGNS)].copy()
 print('Earlier pooled rows:', len(old_detection))
 print('Quality-controlled fold rows:', len(quality_main))
 print('Building-specific validation rows:', len(building_validation))
@@ -497,6 +505,7 @@ test = pd.read_csv(BUILDING / 'building_detection_test_metrics.csv')
 selected = pd.read_csv(BUILDING / 'building_detection_selected_models.csv')
 quality_summary = pd.read_csv(QUALITY / 'quality_detection_metrics_summary.csv')
 audit_manifest = read_json(AUDIT / 'audit_manifest.json')
+quality_summary = quality_summary[quality_summary['design'].isin(['chronological', 'building_held_out', 'nested_grouped'])].copy()
 display(test.round(3))
 """
         ),
@@ -555,7 +564,7 @@ display(pooled_xgb[['duplicate_policy', 'design', 'mean_f1', 'mean_balanced_accu
         ),
         markdown(
             """
-            The pooled result is useful for comparison across buildings, but it should not be presented as proof that a single model is equally reliable everywhere. The building-specific cards show why local validation is important: hospital AHU-held-out performance is materially weaker than auditorium and office.
+            The pooled result is useful for comparison across buildings, but it should not be presented as proof that a single model is equally reliable everywhere. The building-specific cards show why local validation is important. The pooled `ahu_held_out` assignment is retained for traceability but is disabled from current modelling and is not displayed here.
             """
         ),
         markdown("## 4. What is and is not delivered",),

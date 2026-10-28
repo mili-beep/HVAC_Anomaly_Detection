@@ -100,12 +100,22 @@ cleaning and modelling code does not need separate parsing implementations.
 
 ## 2026-10-27 — Frozen evaluation split designs
 
-The project uses four saved evaluation designs rather than a random row split:
-AHU-held-out within-building, chronological, building-held-out transfer, and
-nested grouped validation. The `create_evaluation_splits` command writes one
-row-assignment table, a manifest and a human-readable summary. Detection and
-diagnosis experiments must consume these assignments so the statistical
-baseline and XGBoost are compared on identical folds.
+The project saves four evaluation assignments rather than using a random row
+split: AHU-held-out within-building, chronological, building-held-out transfer,
+and nested grouped validation. The `create_evaluation_splits` command writes
+one row-assignment table, a manifest and a human-readable summary. The pooled
+AHU-held-out assignment is retained but disabled; active pooled experiments use
+the other three assignments so the statistical baseline and XGBoost are
+compared on identical folds.
+
+## 2026-10-28 — Disable pooled AHU-held-out modelling
+
+The pooled `ahu_held_out` assignment remains saved for reproducibility and
+possible supplementary analysis, but is disabled from current model runners,
+headline comparisons and result notebooks. The active pooled designs are
+chronological, building-held-out and nested-grouped. The separate
+`building_ahu_held_out` experiment remains active because it evaluates an
+unseen AHU within one specified building rather than the pooled split.
 
 ## 2026-10-27 — Detection model comparison matrix
 
@@ -113,8 +123,8 @@ The detection comparison uses the normal operating-range rule, Isolation Forest,
 XGBoost and an LSTM autoencoder. The normal operating-range rule and LSTM use the
 physical-signal track; Isolation Forest and XGBoost are tested with both the
 physical-signal and operational-context variants. Every method consumes the
-same frozen AHU-held-out, chronological, building-held-out and nested grouped
-assignments. The LSTM is an optional TensorFlow adapter and must be reported as
+same frozen chronological, building-held-out and nested grouped assignments.
+The pooled AHU-held-out assignment is retained but disabled. The LSTM is an optional TensorFlow adapter and must be reported as
 unavailable when its dependency is absent, never replaced silently.
 
 ## 2026-10-27 — Phase 4 auditorium cleaning

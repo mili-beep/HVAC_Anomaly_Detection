@@ -75,4 +75,5 @@ def test_quality_detection_writes_metrics_and_manifest(tmp_path: Path) -> None:
     )
     summary = pd.read_csv(result["summary"])
     assert set(summary["model"]) == {"normal_range_rule"}
+    assert "ahu_held_out" not in set(summary["design"])
     assert (output_dir / "quality_detection_manifest.json").is_file()

@@ -26,6 +26,10 @@ from ahu_fdd.detection import (
     _xgboost,
     load_detection_config,
 )
+from ahu_fdd.splits import (
+    DISABLED_MODELING_DESIGN_NAMES,
+    MODELING_DESIGN_NAMES,
+)
 
 
 def _json_safe(value: Any) -> Any:
@@ -89,6 +93,9 @@ def run_quality_detection(
     )
     assignments = pd.read_csv(splits_file, low_memory=False)
     _validate_assignments(assignments, len(data))
+    modeling_assignments = assignments.loc[
+        assignments["design"].isin(MODELING_DESIGN_NAMES)
+    ].copy()
     labels = data["label"].astype("string").str.strip()
     normal_label = str(config["normal_label"]).strip()
     if labels.isna().any():
@@ -107,7 +114,9 @@ def run_quality_detection(
                 }
             )
             continue
-        for (design, fold), assignment in assignments.groupby(["design", "fold"], sort=True):
+        for (design, fold), assignment in modeling_assignments.groupby(
+            ["design", "fold"], sort=True
+        ):
             train_ids = assignment.loc[assignment["split"].eq("train"), "row_id"].astype(int)
             test_ids = assignment.loc[assignment["split"].eq("test"), "row_id"].astype(int)
             train_features = features.iloc[train_ids].copy()
@@ -203,6 +212,8 @@ def run_quality_detection(
             "physical_feature_count": len(physical),
             "models_requested": models,
             "model_status": statuses,
+            "modeling_designs": list(MODELING_DESIGN_NAMES),
+            "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
             "output_files": {"by_fold": str(fold_path), "summary": str(summary_path)},
         }
     )

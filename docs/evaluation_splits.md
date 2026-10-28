@@ -13,6 +13,13 @@ and are not regenerated inside a model run.
 | `building_held_out` | Does a model transfer to an unseen building? | The held-out building is absent from training and validation. |
 | `nested_grouped` | What is a robust estimate after model selection? | Outer AHU groups stay untouched while inner grouped validation selects settings. |
 
+`ahu_held_out` is retained in the assignment CSV and manifest for traceability,
+but it is disabled for current pooled headline modelling. The active pooled
+designs are `chronological`, `building_held_out` and `nested_grouped`. The
+separate `building_ahu_held_out` design remains active for the independent
+within-building experiments and should not be confused with the disabled
+pooled assignment.
+
 The statistical baseline and XGBoost must use the same assignment rows for a
 paired comparison. The split command does not select features, fit imputers,
 or train models; those operations belong inside each training fold later.

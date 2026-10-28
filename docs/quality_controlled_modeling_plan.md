@@ -81,9 +81,11 @@ past-only features rather than being filled from across the gap.
 
 ## Step 7 — Create building-specific splits
 
-Generate AHU-held-out and chronological train/validation/test assignments
-independently for auditorium, office and hospital. No building-specific split
-may contain rows from another building.
+Generate the building-specific AHU-held-out and chronological
+train/validation/test assignments independently for auditorium, office and
+hospital. No building-specific split may contain rows from another building.
+This is separate from the pooled `ahu_held_out` assignment, which is retained
+for traceability but disabled for current pooled modelling.
 
 Run it with:
 

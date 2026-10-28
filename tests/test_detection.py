@@ -111,5 +111,6 @@ def test_detection_runner_writes_fold_and_summary_outputs(tmp_path: Path) -> Non
     assert set(result["models_requested"]) == set(MODEL_NAMES)
     assert {"normal_range_rule", "isolation_forest", "xgboost"} <= set(summary["model"])
     assert set(summary["variant"]) == {"physical_signal", "operational_context"}
+    assert "ahu_held_out" not in set(summary["design"])
     assert (output_dir / "detection_manifest.json").is_file()
     assert (output_dir / "detection_summary.md").is_file()

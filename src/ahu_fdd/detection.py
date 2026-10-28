@@ -23,6 +23,10 @@ from ahu_fdd.baselines import (
     _normal_range_prediction,
     _validate_assignments,
 )
+from ahu_fdd.splits import (
+    DISABLED_MODELING_DESIGN_NAMES,
+    MODELING_DESIGN_NAMES,
+)
 
 MODEL_NAMES = (
     "normal_range_rule",
@@ -357,6 +361,9 @@ def run_detection(
     data = pd.read_csv(data_file, low_memory=False).reset_index(drop=True)
     assignments = pd.read_csv(splits_file, low_memory=False)
     _validate_assignments(assignments, len(data))
+    modeling_assignments = assignments.loc[
+        assignments["design"].isin(MODELING_DESIGN_NAMES)
+    ].copy()
     sensors = load_sensor_config(building_config_path)
     features, variants = build_detection_features(data, sensors)
     labels = data["label"].astype("string").str.strip()
@@ -372,7 +379,9 @@ def run_detection(
             continue
         model_variants = ["physical_signal"] if model_name in {"normal_range_rule", "lstm_autoencoder"} else list(VARIANT_NAMES)
         for variant in model_variants:
-            for (design, fold), assignment in assignments.groupby(["design", "fold"], sort=True):
+            for (design, fold), assignment in modeling_assignments.groupby(
+                ["design", "fold"], sort=True
+            ):
                 train_ids = assignment.loc[assignment["split"].eq("train"), "row_id"].astype(int)
                 test_ids = assignment.loc[assignment["split"].eq("test"), "row_id"].astype(int)
                 train_features = features.iloc[train_ids]
@@ -438,6 +447,8 @@ def run_detection(
             "row_count": int(len(data)),
             "models_requested": models,
             "model_status": statuses,
+            "modeling_designs": list(MODELING_DESIGN_NAMES),
+            "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
             "feature_variants": {name: len(columns) for name, columns in variants.items()},
             "metric_file": str(fold_path),
             "summary_file": str(summary_path),

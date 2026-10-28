@@ -68,11 +68,11 @@ def test_baseline_run_writes_fold_and_summary_outputs(tmp_path: Path) -> None:
     summary = pd.read_csv(output_dir / "baseline_metrics_summary.csv")
     assert set(summary["baseline"]) == set(BASELINE_NAMES)
     assert set(summary["design"]) == {
-        "ahu_held_out",
         "chronological",
         "building_held_out",
         "nested_grouped",
     }
+    assert "ahu_held_out" not in set(summary["design"])
     assert (output_dir / "baseline_metrics_by_fold.csv").is_file()
     assert (output_dir / "baseline_manifest.json").is_file()
     assert result["row_count"] == len(_frame())

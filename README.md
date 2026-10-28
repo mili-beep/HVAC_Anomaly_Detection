@@ -227,8 +227,10 @@ create_evaluation_splits \
 ```
 
 This writes one assignment table, manifest and readable summary. The table
-contains four named designs: AHU-held-out, chronological, building-held-out
-transfer, and nested grouped validation. Later models must use these saved
+contains four named assignments: AHU-held-out, chronological, building-held-out
+transfer, and nested grouped validation. The AHU-held-out assignment is retained
+for traceability but is currently disabled for pooled headline modelling. Later
+pooled models use the chronological, building-held-out and nested grouped
 assignments rather than creating new random row splits.
 
 ## Evaluate the three headline detection baselines
