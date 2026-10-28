@@ -235,7 +235,7 @@ assignments rather than creating new random row splits.
 
 The baseline comparison uses the frozen assignments and evaluates three
 complementary references: a majority-class lower bound, a transparent normal
-normal operating-range rule, and actuator/pump-only evidence. Missingness remains visible in
+operating-range rule, and actuator/pump-only evidence. Missingness remains visible in
 the audit and operational-context sensitivity results rather than being used as
 a headline detector.
 
@@ -256,10 +256,11 @@ labels or test values are used to choose thresholds.
 After the baseline and detection commands have completed, open
 `notebooks/02_detection_results.ipynb`. It loads the saved metrics and creates
 report-ready tables and Matplotlib figures for the three headline baselines,
-all four detection models, the physical-signal headline variant, one XGBoost
-physical-versus-operational comparison, the three principal split designs,
-false-positive rates, and LSTM scoring coverage. It does not retrain models; it
-is a reproducible presentation layer over the saved results.
+all four detection models, the quality-controlled duplicate-policy comparison,
+the physical-signal headline variant, one XGBoost physical-versus-operational
+comparison, the building-specific results, false-positive rates, and LSTM
+scoring coverage. It does not retrain models; it is a reproducible
+presentation layer over the saved results.
 
 ## Run detection experiments
 
@@ -302,6 +303,21 @@ treated as a normal classification error. Labels with fewer than the configured
 minimum support are excluded from diagnosis only and recorded in the manifest.
 See
 [docs/diagnosis_experiments.md](docs/diagnosis_experiments.md).
+
+## Showcase operational evidence
+
+Open `notebooks/04_operational_outputs.ipynb` after the detection runs. It
+creates concise evidence cards for facilities staff, showing the building,
+evaluation design, selected model, F1, balanced accuracy, false-positive rate,
+coverage, and the qualification required before operational deployment. It is
+an historical evidence presentation, not a live dashboard.
+
+The four notebook roles are:
+
+1. `01_auditorium_pipeline_walkthrough.ipynb` — audit, cleaning, features and normal patterns;
+2. `02_detection_results.ipynb` — pooled, quality-controlled and building-specific detection;
+3. `03_diagnosis_results.ipynb` — exact fault-type diagnosis;
+4. `04_operational_outputs.ipynb` — staff-facing evidence cards and deployment limitations.
 
 ## Showcase diagnosis results
 
