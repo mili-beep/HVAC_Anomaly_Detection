@@ -1,6 +1,18 @@
+import pandas as pd
 import pytest
 
+from ahu_fdd.feature_dependence import absolute_roc_auc
 from ahu_fdd.feature_sensitivity import resolve_feature_variants
+
+
+def test_absolute_roc_auc_counts_inverse_direction() -> None:
+    y = pd.Series([0, 0, 1, 1])
+    assert absolute_roc_auc(y, pd.Series([4, 3, 2, 1])) == pytest.approx(1.0)
+
+
+def test_absolute_roc_auc_is_undefined_without_both_classes() -> None:
+    y = pd.Series([0, 0, 0])
+    assert pd.isna(absolute_roc_auc(y, pd.Series([1, 2, 3])))
 
 
 def test_feature_variants_remove_direct_state_and_pump_history() -> None:

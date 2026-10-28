@@ -1,0 +1,23 @@
+{
+  "auc_definition": "max(ROC-AUC, 1 - ROC-AUC), so either direction is counted",
+  "config_file": "/Users/mili/Desktop/IRPN/configs/detection.yaml",
+  "data_file": "/Users/mili/Desktop/IRPN/data/interim/cleaned/cleaned_ahu.csv",
+  "feature_file": "/Users/mili/Desktop/IRPN/data/interim/features/multibuilding_features.csv",
+  "feature_lineage_file": "/Users/mili/Desktop/IRPN/data/interim/features/feature_lineage.csv",
+  "feature_manifest_file": "/Users/mili/Desktop/IRPN/data/interim/features/feature_manifest.json",
+  "feature_variant": "physical_signal",
+  "generated_at": "2026-10-29T01:35:23.214286+10:30",
+  "imputation": "training-fold median only; no test values used to fit medians",
+  "modeling_designs": [
+    "chronological",
+    "building_held_out",
+    "nested_grouped"
+  ],
+  "normal_label": "Normal condition",
+  "output_files": {
+    "by_fold": "results/feature_dependence/univariate_feature_auc_by_fold.csv",
+    "summary": "results/feature_dependence/univariate_feature_auc_summary.csv"
+  },
+  "schema_version": 1,
+  "splits_file": "/Users/mili/Desktop/IRPN/data/interim/quality_splits/exclude_ambiguous_keys/evaluation_splits.csv"
+}

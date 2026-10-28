@@ -236,3 +236,15 @@ Diagnosis support is now reported from the saved assignments as a complete
 train/test matrix for every active design, fold, building and eligible fault
 type. A class with no training rows is explicitly marked unsupported rather than
 being interpreted as an ordinary model error.
+
+## 2026-10-29 — Single-feature shortcut audit
+
+To support the claim that the headline detector is not simply reading one
+label-defining field, each of the 88 default predictors is evaluated alone on
+the held-out rows of every active pooled fold. Missing values are filled with
+the training-fold median only. The reported direction-free ROC-AUC is
+`max(AUC, 1 - AUC)`, so an inverse relationship is treated fairly. The audit
+is descriptive evidence about individual-feature dependence; it does not rule
+out useful interactions between multiple features. A permutation-importance
+analysis was not added because it would duplicate the existing focused
+feature-ablation comparison without changing the main decision.
