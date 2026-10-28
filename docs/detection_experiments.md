@@ -9,14 +9,18 @@ The detection runner compares four methods under a frozen evaluation protocol:
 | `xgboost` | Labelled training rows | Physical signal and operational context |
 | `lstm_autoencoder` | Normal training sequences only | Physical signal |
 
-The statistical, Isolation Forest and XGBoost tracks run without a deep-learning
-framework. The LSTM adapter requires TensorFlow and is recorded as unavailable
-rather than being silently replaced by another model when TensorFlow is absent.
+TensorFlow is a project dependency because the LSTM autoencoder is part of the
+planned comparison. If an environment cannot install TensorFlow, the adapter
+records the model as unavailable rather than silently replacing it with another
+model.
 
 For every fold, preprocessing is fitted only on training rows. No AHU name is
 used as a predictor. Isolation Forest thresholds are fitted from normal
 training scores, XGBoost class weighting is calculated from training labels,
 and LSTM reconstruction thresholds are fitted from normal training sequences.
+For LSTM evaluation, the first `sequence_length - 1` rows of each test AHU
+stream have no complete within-test history and are reported as unscored rather
+than assigned an artificial prediction.
 
 ## Run
 

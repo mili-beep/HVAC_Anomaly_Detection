@@ -183,9 +183,9 @@ run_detection_experiments \
   --building-config configs/multibuilding_ahu.yaml
 ```
 
-This evaluates the statistical envelope, Isolation Forest and XGBoost. The
-LSTM autoencoder is included in the implementation but requires TensorFlow;
-when it is not installed, the run records it as unavailable rather than
+This evaluates the statistical envelope, Isolation Forest, XGBoost and LSTM
+autoencoder. TensorFlow is included in the project requirements. If a platform
+cannot install it, the run records the LSTM as unavailable rather than
 substituting another model. See [docs/detection_experiments.md](docs/detection_experiments.md).
 
 ## Repository status
