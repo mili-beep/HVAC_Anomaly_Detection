@@ -1,0 +1,19 @@
+schema_version: 1
+
+# Duplicate keys are ambiguous observations, not proven identical exports.
+duplicate_key_columns:
+  - building
+  - ahu
+  - timestamp
+
+policies:
+  exclude_ambiguous_keys:
+    action: exclude_all_rows_for_duplicate_keys
+    retain_excluded_rows_in_audit: true
+    row_selection: none
+    aggregation: none
+  retain_flagged_keys:
+    action: retain_all_rows
+    retain_excluded_rows_in_audit: true
+    row_selection: none
+    aggregation: none

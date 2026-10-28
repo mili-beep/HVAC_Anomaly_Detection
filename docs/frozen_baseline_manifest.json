@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "checkpoint": "pre_quality_controlled_and_building_specific",
+  "generated_on": "2026-10-28",
+  "files": {
+    "data/interim/canonical/canonical_ahu.csv": "963ce78a98a1d85b5f139dc60911b2ce5f670fd47f6328e2f206baaa08c6df27",
+    "data/interim/canonical/canonical_ahu_manifest.json": "99874dda0c70189ae7f2167436148c1a1fceb18a91f8ab38d5707a689bb71ee0",
+    "data/interim/evaluation_splits/evaluation_splits.csv": "8c7dd4a16dec049e51950cde931b7acec784b8dd040acbe53dbe2e764f115f26",
+    "data/interim/evaluation_splits/evaluation_split_manifest.json": "32695a8fd1141d8c06d2a620b0baedb98597a33cda92dcaf181e1c3f0f344242",
+    "results/audit/audit_manifest.json": "ae2098a9569b10d6d3a3f5b4f3113cdcdf370c6c251ac04f20fd8b028bdd1650",
+    "results/baselines/baseline_metrics_summary.csv": "4a34c7369655508de11d2f932e3b16d93bd73ab56468bd155eff87b96fa5e015",
+    "results/detection/detection_metrics_summary.csv": "653ded077aa08904bdfb051fd84702b2302e83e497660555c524fb31cf3d592b",
+    "results/diagnosis/diagnosis_metrics_summary.csv": "ca26fd789a68820fd09551ef8f4ef2568a543a704f9022b2548a230fde4baf35"
+  }
+}

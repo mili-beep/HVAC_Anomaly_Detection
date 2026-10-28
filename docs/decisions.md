@@ -62,6 +62,31 @@ class support, calendar coverage, label associations, run lengths, and
 numeric screening counts are recorded in the manifest. These findings remain
 observations only; cleaning and inclusion decisions are deferred to Phase 2.
 
+## 2026-10-28 — Frozen quality-controlled modelling checkpoint
+
+The existing pooled and transfer results are preserved as a baseline. New
+quality-controlled outputs will use the two policies in
+`configs/duplicate_policies.yaml`. Hospital duplicate AHU/timestamp keys are
+ambiguous observations: the main policy excludes every row for an ambiguous
+key, while the sensitivity policy retains all rows. Neither policy selects the
+first row or averages conflicting observations. Imputation remains training-fold
+only, and existing transfer outputs are not overwritten.
+
+## 2026-10-28 — Cleaning second audit completed
+
+The second audit re-read the canonical input and both saved policy outputs. All
+checks passed. The main `exclude_ambiguous_keys` output contains 354,587 rows,
+has zero duplicate AHU/timestamp keys, and excludes all 368 rows belonging to
+184 ambiguous keys. The `retain_flagged_keys` sensitivity output contains all
+354,955 input rows and retains the 184 duplicate keys (368 rows) with explicit
+quality flags. Labels and source-row identities are preserved under both
+policies. The deterministic cleaning step changed 8,208 rows containing
+placeholder or other invalid sensor cells; 8,162 of those remain in the main
+output after duplicate-key exclusion. No imputation was performed: both
+policies report zero imputed rows and zero imputed cells. Detailed audit
+artefacts are written to `data/interim/cleaned/cleaning_second_audit.*` and
+`cleaning_verification_manifest.json`.
+
 ## 2026-10-27 — Phase 3 canonical ingestion
 
 The three source schemas are mapped through

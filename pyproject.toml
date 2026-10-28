@@ -36,6 +36,8 @@ create_evaluation_splits = "ahu_fdd.splits:main"
 evaluate_detection_baselines = "ahu_fdd.baselines:main"
 run_detection_experiments = "ahu_fdd.detection:main"
 run_diagnosis_experiments = "ahu_fdd.diagnosis:main"
+clean_multibuilding_ahu = "ahu_fdd.quality_cleaning:main"
+verify_multibuilding_cleaning = "ahu_fdd.quality_cleaning:verify_main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ahu_fdd"]
