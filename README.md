@@ -291,12 +291,19 @@ directly:
 
 ```bash
 run_diagnosis_experiments \
-  --data-file data/interim/canonical/canonical_ahu.csv \
-  --splits-file data/interim/evaluation_splits/evaluation_splits.csv \
+  --data-file data/interim/cleaned/cleaned_ahu.csv \
+  --feature-file data/interim/features/multibuilding_features.csv \
+  --feature-manifest data/interim/features/feature_manifest.json \
+  --splits-file data/interim/quality_splits/exclude_ambiguous_keys/evaluation_splits.csv \
   --output-dir results/diagnosis \
   --config configs/diagnosis.yaml \
-  --building-config configs/multibuilding_ahu.yaml
+  --building-config configs/multibuilding_ahu.yaml \
+  --duplicate-policy exclude_ambiguous_keys
 ```
+
+The diagnosis run uses the same cleaned rows, saved Phase 5 feature table and
+duplicate-excluded split policy as the headline detection run. It does not
+rebuild a separate in-memory feature set.
 
 The outputs include class and building metrics, confusion matrices, unsupported
 class counts, and row-level confidence/abstention fields. A fault class absent

@@ -123,9 +123,15 @@ Run it with:
 
 ## Step 10 — Re-run diagnosis
 
-Run pooled fault-type diagnosis on the main quality-controlled table. Report
+Run pooled fault-type diagnosis on the main quality-controlled table and the
+saved Phase 5 feature table. Report
 rare and unsupported classes separately. Add building-specific diagnosis only
 where class support is sufficient.
+
+The command must use `data/interim/cleaned/cleaned_ahu.csv`,
+`data/interim/features/multibuilding_features.csv`, and the
+`exclude_ambiguous_keys` quality-controlled assignments. This keeps diagnosis
+on the same rows and frozen predictors as the headline detection experiment.
 
 ## Step 11 — Update notebooks
 

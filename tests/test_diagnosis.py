@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from ahu_fdd.diagnosis import run_diagnosis
+from ahu_fdd.multibuilding_features import engineer_multibuilding
 from ahu_fdd.splits import create_evaluation_splits
 
 SENSORS = [
@@ -44,6 +45,7 @@ def _frame() -> pd.DataFrame:
                     "building": building,
                     "ahu": f"AHU-{ahu_number}",
                     "timestamp": f"2024-01-{hour + 1:02d} 00:00:00",
+                    "source_row_id": len(rows),
                     "label": label,
                 }
                 row.update({sensor: 1.0 for sensor in SENSORS})
@@ -62,16 +64,25 @@ def _frame() -> pd.DataFrame:
 
 def test_diagnosis_runner_writes_auditable_outputs(tmp_path: Path) -> None:
     data_file = tmp_path / "canonical.csv"
+    feature_dir = tmp_path / "features"
     splits_dir = tmp_path / "splits"
     output_dir = tmp_path / "diagnosis"
     frame = _frame()
     frame.loc[0, "label"] = "Single example fault"
     frame.to_csv(data_file, index=False)
+    engineer_multibuilding(
+        data_file,
+        feature_dir,
+        Path("configs/multibuilding_ahu.yaml"),
+        Path("configs/feature_engineering.yaml"),
+    )
     create_evaluation_splits(
         data_file, splits_dir, Path("configs/evaluation_splits.yaml")
     )
     result = run_diagnosis(
         data_file,
+        feature_dir / "multibuilding_features.csv",
+        feature_dir / "feature_manifest.json",
         splits_dir / "evaluation_splits.csv",
         output_dir,
         Path("configs/diagnosis.yaml"),
@@ -88,4 +99,5 @@ def test_diagnosis_runner_writes_auditable_outputs(tmp_path: Path) -> None:
     manifest = json.loads((output_dir / "diagnosis_manifest.json").read_text())
     assert manifest["excluded_fault_labels"] == {"Single example fault": 1}
     assert manifest["eligible_fault_row_count"] == manifest["fault_row_count"] - 1
+    assert manifest["feature_counts"]["physical_signal"] == 88
     assert result["markdown"].endswith("diagnosis_summary.md")

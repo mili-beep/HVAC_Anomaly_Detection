@@ -22,17 +22,53 @@ from sklearn.metrics import (
 from xgboost import XGBClassifier
 
 from ahu_fdd.baselines import _validate_assignments
-from ahu_fdd.detection import (
-    FoldTransformer,
-    build_detection_features,
-    load_sensor_config,
-)
+from ahu_fdd.detection import FoldTransformer
 from ahu_fdd.splits import (
     DISABLED_MODELING_DESIGN_NAMES,
     MODELING_DESIGN_NAMES,
 )
 
 DESIGN_NAMES = MODELING_DESIGN_NAMES
+
+
+def _load_features(
+    data_file: Path,
+    feature_file: Path,
+    feature_manifest_file: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, list[str]], dict[str, Any]]:
+    """Load the cleaned rows and the saved Phase 5 feature table together.
+
+    Diagnosis must consume the same frozen feature table as detection. Rebuilding
+    features inside this runner would silently create a different experiment.
+    """
+    data = pd.read_csv(data_file, low_memory=False).reset_index(drop=True)
+    features = pd.read_csv(feature_file, low_memory=False).reset_index(drop=True)
+    manifest = json.loads(feature_manifest_file.read_text(encoding="utf-8"))
+    variants = {
+        str(name): [str(column) for column in columns]
+        for name, columns in manifest.get("feature_variants", {}).items()
+    }
+    if not variants:
+        raise ValueError("The feature manifest does not define any feature variants")
+    key_columns = ["building", "ahu", "timestamp", "source_row_id", "label"]
+    required = set(key_columns).union(*variants.values())
+    if len(data) != len(features):
+        raise ValueError("Diagnosis data and feature table have different row counts")
+    missing = required - set(features.columns)
+    if missing:
+        raise ValueError(f"Feature table is missing columns: {sorted(missing)}")
+    for column in key_columns:
+        left = data[column]
+        right = features[column]
+        if column == "timestamp":
+            left = pd.to_datetime(left, errors="coerce")
+            right = pd.to_datetime(right, errors="coerce")
+        else:
+            left = left.astype("string")
+            right = right.astype("string")
+        if not left.equals(right):
+            raise ValueError(f"Feature table key column does not match data: {column}")
+    return data, features, variants, manifest
 
 
 def load_diagnosis_config(path: Path) -> dict[str, Any]:
@@ -170,6 +206,8 @@ def _record_metrics(
             "class_count": int(len(classes)),
             "confidence_threshold": threshold,
             "coverage": float(confident.mean()) if len(confident) else np.nan,
+            "confident_rows": int(confident.sum()),
+            "abstained_rows": int((~confident).sum()),
             "abstention_rate": float((~confident).mean()) if len(confident) else np.nan,
             "confident_accuracy": confident_metrics["accuracy"],
             **metrics,
@@ -239,19 +277,22 @@ def _requested_designs(requested: str | None) -> list[str]:
 
 def run_diagnosis(
     data_file: Path,
+    feature_file: Path,
+    feature_manifest_file: Path,
     splits_file: Path,
     output_dir: Path,
     config_path: Path,
     building_config_path: Path,
     requested_designs: str | None = None,
+    duplicate_policy: str = "unspecified",
 ) -> dict[str, Any]:
     config = load_diagnosis_config(config_path)
     designs = _requested_designs(requested_designs)
-    data = pd.read_csv(data_file, low_memory=False).reset_index(drop=True)
+    data, features, variants, feature_manifest = _load_features(
+        data_file, feature_file, feature_manifest_file
+    )
     assignments = pd.read_csv(splits_file, low_memory=False)
     _validate_assignments(assignments, len(data))
-    sensors = load_sensor_config(building_config_path)
-    features, variants = build_detection_features(data, sensors)
     for variant in config["feature_variants"]:
         if variant not in variants:
             raise ValueError(f"Unknown feature variant in diagnosis config: {variant}")
@@ -352,9 +393,12 @@ def run_diagnosis(
             "schema_version": 1,
             "generated_at": datetime.now().astimezone().isoformat(),
             "data_file": str(data_file.expanduser().resolve()),
+            "feature_file": str(feature_file.expanduser().resolve()),
+            "feature_manifest_file": str(feature_manifest_file.expanduser().resolve()),
             "splits_file": str(splits_file.expanduser().resolve()),
             "config_file": str(config_path.expanduser().resolve()),
             "building_config_file": str(building_config_path.expanduser().resolve()),
+            "duplicate_policy": duplicate_policy,
             "row_count": int(len(data)),
             "fault_row_count": int(fault_mask.sum()),
             "eligible_fault_row_count": int(diagnosis_mask.sum()),
@@ -368,6 +412,10 @@ def run_diagnosis(
             "designs": designs,
             "disabled_modeling_designs": list(DISABLED_MODELING_DESIGN_NAMES),
             "feature_variants": config["feature_variants"],
+            "feature_counts": {
+                variant: len(variants[variant]) for variant in config["feature_variants"]
+            },
+            "feature_manifest_schema_version": feature_manifest.get("schema_version"),
             "output_files": {
                 "summary": str(summary_path),
                 "by_class": str(class_path),
@@ -383,6 +431,7 @@ def run_diagnosis(
     display_frame = summary_frame.groupby(["design", "variant", "task"], as_index=False).agg(
         folds=("fold", "nunique"), evaluated_rows=("evaluated_rows", "sum"),
         unsupported_rows=("unsupported_rows", "sum"), macro_f1=("macro_f1", "mean"),
+        confident_rows=("confident_rows", "sum"),
         coverage=("coverage", "mean"), confident_accuracy=("confident_accuracy", "mean"),
     )
     lines = [
@@ -393,13 +442,14 @@ def run_diagnosis(
         f"Fault types with fewer than {minimum_fault_rows} labelled rows are excluded from diagnosis: "
         f"{', '.join(excluded_fault_labels) if excluded_fault_labels else 'none'}.",
         "",
-        "| Design | Variant | Task | Folds | Evaluated rows | Unsupported rows | Macro F1 | Coverage | Confident accuracy |",
-        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Design | Variant | Task | Folds | Evaluated rows | Unsupported rows | Confident rows | Macro F1 | Mean-fold coverage | Confident accuracy |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for row in display_frame.itertuples(index=False):
         lines.append(
             f"| {row.design} | {row.variant} | {row.task} | {row.folds} | {row.evaluated_rows:,} | "
-            f"{row.unsupported_rows:,} | {row.macro_f1:.3f} | {row.coverage:.3f} | {row.confident_accuracy:.3f} |"
+            f"{row.unsupported_rows:,} | {row.confident_rows:,} | {row.macro_f1:.3f} | "
+            f"{row.coverage:.3f} | {row.confident_accuracy:.3f} |"
         )
     markdown_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {
@@ -416,19 +466,29 @@ def run_diagnosis(
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run leakage-safe AHU fault diagnosis experiments")
     parser.add_argument("--data-file", type=Path, required=True)
+    parser.add_argument("--feature-file", type=Path, required=True)
+    parser.add_argument("--feature-manifest", type=Path, required=True)
     parser.add_argument("--splits-file", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=Path("results/diagnosis"))
     parser.add_argument("--config", type=Path, default=Path("configs/diagnosis.yaml"))
     parser.add_argument("--building-config", type=Path, default=Path("configs/multibuilding_ahu.yaml"))
     parser.add_argument("--designs", help="Comma-separated subset of split designs; default is all designs")
+    parser.add_argument(
+        "--duplicate-policy",
+        default="unspecified",
+        help="Declared duplicate-row policy used to produce the input table",
+    )
     args = parser.parse_args(argv)
     result = run_diagnosis(
         args.data_file,
+        args.feature_file,
+        args.feature_manifest,
         args.splits_file,
         args.output_dir,
         args.config,
         args.building_config,
         args.designs,
+        args.duplicate_policy,
     )
     print(f"Wrote diagnosis outputs to {args.output_dir.resolve()}")
     print(result["summary"])
