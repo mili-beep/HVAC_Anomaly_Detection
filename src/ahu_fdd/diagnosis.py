@@ -28,7 +28,7 @@ from ahu_fdd.detection import (
     load_sensor_config,
 )
 
-DESIGN_NAMES = ("ahu_held_out", "chronological", "building_held_out", "nested_grouped")
+DESIGN_NAMES = ("chronological", "building_held_out", "nested_grouped")
 
 
 def load_diagnosis_config(path: Path) -> dict[str, Any]:
