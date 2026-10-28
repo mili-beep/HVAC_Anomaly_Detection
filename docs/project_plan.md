@@ -500,7 +500,7 @@ Make the analysis understandable without duplicating the implementation.
 
 ### Notebooks
 
-1. `01_auditorium_pipeline_walkthrough.ipynb`
+1. `01_multibuilding_pipeline_walkthrough.ipynb`
 2. `02_detection_results.ipynb`
 3. `03_building_detection_results.ipynb`
 4. `04_diagnosis_results.ipynb`

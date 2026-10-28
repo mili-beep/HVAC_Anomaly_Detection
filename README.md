@@ -209,7 +209,7 @@ training imputation policy. See
 
 After the audit, preparation, cleaning, feature-engineering and pattern
 discovery commands have completed, open
-`notebooks/01_auditorium_pipeline_walkthrough.ipynb`. It reads the saved
+`notebooks/01_multibuilding_pipeline_walkthrough.ipynb`. It reads the saved
 artefacts and creates report-ready Matplotlib figures for label support,
 missingness, operating modes, feature families, shortcut flags, hourly and
 monthly profiles, and normal-operation PCA. The notebook is a presentation
@@ -328,7 +328,7 @@ an historical evidence presentation, not a live dashboard.
 
 The five notebook roles are:
 
-1. `01_auditorium_pipeline_walkthrough.ipynb` — audit, cleaning, features and normal patterns;
+1. `01_multibuilding_pipeline_walkthrough.ipynb` — audit, cleaning, features and normal patterns across all buildings;
 2. `02_detection_results.ipynb` — pooled baselines, models and duplicate-policy sensitivity;
 3. `03_building_detection_results.ipynb` — independent auditorium, hospital and office models;
 4. `04_diagnosis_results.ipynb` — exact fault-type diagnosis;

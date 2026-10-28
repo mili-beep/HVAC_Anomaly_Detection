@@ -19,7 +19,7 @@ outputs belong under `results/quality_controlled/` and new building-specific
 outputs belong under `results/building_specific/`.
 
 The current working tree already contains an intentional user edit to
-`notebooks/01_auditorium_pipeline_walkthrough.ipynb`; it is not part of this
+`notebooks/01_multibuilding_pipeline_walkthrough.ipynb`; it is not part of this
 checkpoint and must not be overwritten or staged by automation.
 
 ## Frozen policy decision
