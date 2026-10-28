@@ -5,6 +5,9 @@ normal_range_rule:
   lower_quantile: 0.01
   upper_quantile: 0.99
 
+building_specific:
+  selection_metric: f1
+
 models:
   normal_range_rule: {}
   isolation_forest:

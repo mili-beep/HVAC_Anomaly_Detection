@@ -104,7 +104,20 @@ not overwritten; outputs belong under `results/quality_controlled/`.
 
 Train and evaluate separate model sets for auditorium, office and hospital.
 Fit imputers and scalers within each building and fold. Select the best model
-using validation data only, then evaluate it once on the test data.
+using validation F1, with balanced accuracy as a tie-break, then refit that selected model on training plus
+validation rows and evaluate it once on the held-out test data. The validation
+comparison for every model and the selected-model test result are saved under
+`results/building_specific/`.
+
+Run it with:
+
+    run_building_detection \
+      --data-file data/interim/cleaned/cleaned_ahu.csv \
+      --feature-file data/interim/features/multibuilding_features.csv \
+      --feature-manifest data/interim/features/feature_manifest.json \
+      --splits-file data/interim/building_splits/building_splits.csv \
+      --output-dir results/building_specific \
+      --config configs/detection.yaml
 
 ## Step 10 — Re-run diagnosis
 

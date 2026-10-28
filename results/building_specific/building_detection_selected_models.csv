@@ -1,0 +1,7 @@
+building,design,fold,selected_model,selection_metric,validation_score,validation_balanced_accuracy,validation_coverage
+auditorium,building_ahu_held_out,fold_001,xgboost,f1,0.9994256999282125,0.9993958355912255,1.0
+auditorium,building_chronological,fold_001,xgboost,f1,0.995692378381483,0.9968606594428775,1.0
+hospital,building_ahu_held_out,fold_001,xgboost,f1,0.7894736842105263,0.9366606319865791,1.0
+hospital,building_chronological,fold_001,xgboost,f1,0.9966996699669967,0.9967105263157895,1.0
+office,building_ahu_held_out,fold_001,xgboost,f1,0.9978686153611935,0.9984038726611406,1.0
+office,building_chronological,fold_001,xgboost,f1,0.9968925269061695,0.9969021533811863,1.0

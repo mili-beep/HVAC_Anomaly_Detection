@@ -1,0 +1,34 @@
+{
+  "buildings": [
+    "auditorium",
+    "hospital",
+    "office"
+  ],
+  "config_file": "/Users/mili/Desktop/IRPN/configs/detection.yaml",
+  "data_file": "/Users/mili/Desktop/IRPN/data/interim/cleaned/cleaned_ahu.csv",
+  "designs": [
+    "building_ahu_held_out",
+    "building_chronological"
+  ],
+  "feature_file": "/Users/mili/Desktop/IRPN/data/interim/features/multibuilding_features.csv",
+  "feature_manifest_file": "/Users/mili/Desktop/IRPN/data/interim/features/feature_manifest.json",
+  "generated_at": "2026-10-28T22:57:21.530618+10:30",
+  "model_status": [],
+  "models_requested": [
+    "normal_range_rule",
+    "isolation_forest",
+    "xgboost",
+    "lstm_autoencoder"
+  ],
+  "output_files": {
+    "selected_models": "results/building_specific/building_detection_selected_models.csv",
+    "test": "results/building_specific/building_detection_test_metrics.csv",
+    "validation": "results/building_specific/building_detection_validation_metrics.csv"
+  },
+  "physical_feature_count": 88,
+  "row_count": 354587,
+  "schema_version": 1,
+  "selection_metric": "f1",
+  "splits_file": "/Users/mili/Desktop/IRPN/data/interim/building_splits/building_splits.csv",
+  "variant": "physical_signal"
+}

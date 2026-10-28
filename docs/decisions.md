@@ -188,3 +188,13 @@ stored separately under `results/quality_controlled/` so earlier experiments
 remain reproducible and unchanged. LSTM coverage is reported explicitly when
 gaps prevent a complete sequence; rows without a valid sequence are not
 silently treated as normal.
+
+## 2026-10-28 — Building-specific model selection
+
+Independent building models use the default physical-signal features and the
+saved building-specific AHU-held-out and chronological assignments. F1 is the
+pre-declared validation selection metric. Every candidate model is assessed on
+validation rows, the best candidate is selected separately for each
+building/design, and only that selected model is refit with training plus
+validation rows before one final test evaluation. Test scores are never used
+to choose the model.

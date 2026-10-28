@@ -139,6 +139,26 @@ sensitivity comparison. See
 [docs/quality_detection.md](docs/quality_detection.md) for the complete
 command set and interpretation of coverage.
 
+## Run independent building models
+
+After the building-specific split assignments exist, train the four detection
+methods independently within each building:
+
+```bash
+run_building_detection \
+  --data-file data/interim/cleaned/cleaned_ahu.csv \
+  --feature-file data/interim/features/multibuilding_features.csv \
+  --feature-manifest data/interim/features/feature_manifest.json \
+  --splits-file data/interim/building_splits/building_splits.csv \
+  --output-dir results/building_specific \
+  --config configs/detection.yaml
+```
+
+The model with the best validation F1 is selected separately for each
+building/design. It is then refitted on that building's training and validation
+rows and evaluated once on its test rows. See
+[docs/building_specific_detection.md](docs/building_specific_detection.md).
+
 ## Clean auditorium data under the Phase 4 policy
 
 First prepare the Phase 2 table, then run:
