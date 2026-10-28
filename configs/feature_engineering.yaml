@@ -1,0 +1,16 @@
+schema_version: 1
+
+# This file contains feature-generation settings only. The canonical sensor
+# list remains in multibuilding_ahu.yaml so the schema has one source of truth.
+normal_label: Normal condition
+rolling_windows_rows:
+  - 3
+  - 24
+rate_max_gap_hours: 2
+
+operational_context:
+  include_missingness_indicators: true
+  include_sensor_availability: true
+  include_operating_mode: true
+  include_time_context: true
+

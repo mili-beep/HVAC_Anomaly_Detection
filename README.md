@@ -78,6 +78,25 @@ row identifiers, and records missingness, placeholders and duplicate keys. It
 does not impute, deduplicate, relabel or remove rows. See
 [docs/canonical_schema.md](docs/canonical_schema.md).
 
+## Build shared multibuilding features under the Step 5 policy
+
+After the quality-controlled cleaning command has completed, generate one
+feature table for all three buildings:
+
+```bash
+engineer_multibuilding_features \
+  --input-file data/interim/cleaned/cleaned_ahu.csv \
+  --output-dir data/interim/features \
+  --building-config configs/multibuilding_ahu.yaml \
+  --feature-config configs/feature_engineering.yaml
+```
+
+The manifest declares the default physical-signal predictors and the
+secondary operational-context comparison columns. It also records feature
+lineage and a shortcut audit. No imputation is performed here; later model
+folds fit imputers on training rows only. See
+[docs/multibuilding_feature_engineering.md](docs/multibuilding_feature_engineering.md).
+
 ## Clean auditorium data under the Phase 4 policy
 
 First prepare the Phase 2 table, then run:
@@ -232,10 +251,10 @@ confusion matrix. It does not retrain the model.
 
 ## Repository status
 
-Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
-the Phase 3 canonical ingestion adapter, the Phase 4 auditorium cleaning
-policy, the Phase 5 auditorium feature policy, auditorium normal-operation
-pattern discovery, and the evaluation split implementation are complete.
+Phase 0, the Phase 1 raw-data audit, the Phase 2 data-quality policy, the Phase
+3 canonical ingestion adapter, the Phase 4 quality-controlled cleaning audit,
+the shared Phase 5 feature generator, auditorium normal-operation pattern
+discovery, and the evaluation split implementation are complete.
 The three headline detection baselines and the first detection experiment
 runner are now implemented; all model training uses the saved split
 assignments. See

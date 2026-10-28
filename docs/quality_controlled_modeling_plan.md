@@ -53,9 +53,21 @@ verify_multibuilding_cleaning \
 
 ## Step 5 — Share feature generation
 
-Use one feature implementation for all buildings. Headline models use default
-sensor and relationship features. Operational-context features are shown only
-in Notebook 2 as a secondary XGBoost comparison.
+Use `engineer_multibuilding_features` for all buildings. It writes one feature
+table and a manifest containing two declared column variants. Headline models
+select the default physical-signal predictors: raw sensors, physical
+relationships and past-only temporal features. Operational-context predictors
+add missingness/availability, operating-mode and cyclical time indicators;
+they are shown only in Notebook 2 as a secondary XGBoost comparison. No
+imputation is performed here.
+
+Run it with:
+
+    engineer_multibuilding_features \
+      --input-file data/interim/cleaned/cleaned_ahu.csv \
+      --output-dir data/interim/features \
+      --building-config configs/multibuilding_ahu.yaml \
+      --feature-config configs/feature_engineering.yaml
 
 ## Step 6 — Make sequences gap-aware
 

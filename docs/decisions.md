@@ -136,6 +136,19 @@ reports missingness and univariate label associations without changing the
 feature set. Mode-dependent heating/cooling availability is explicitly flagged
 for review rather than being silently treated as fault evidence.
 
+## 2026-10-28 — Shared multibuilding feature generation
+
+Feature generation is now shared across auditorium, hospital and office. The
+quality-controlled main table produced 354,587 rows with 88 default
+physical-signal predictors and 135 operational-context predictors. The default
+variant contains raw sensors, physical relationships and past-only rolling and
+rate features. The secondary context variant adds missingness and availability
+indicators, derived operating modes (including an explicit unknown mode when
+neither subsystem has an observed signal), and cyclical time context. One
+feature table and a manifest are used rather than duplicating the large table;
+the manifest declares both column lists. No imputation was performed, and
+labels were used only by the separate shortcut audit.
+
 ## 2026-10-27 — Auditorium pattern discovery
 
 Normal-operation pattern discovery is a descriptive artefact, separate from

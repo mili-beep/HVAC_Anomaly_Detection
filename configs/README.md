@@ -37,3 +37,9 @@ each training fold.
 `verify_multibuilding_cleaning` performs the second audit and fails if row
 identity, labels, timestamps, duplicate counts or quality flags do not match
 the declared policy.
+
+`feature_engineering.yaml` contains only shared feature-generation settings.
+The canonical sensor list remains in `multibuilding_ahu.yaml`. The
+`engineer_multibuilding_features` command creates one feature table plus a
+manifest that declares the default physical-signal and secondary
+operational-context column lists.
