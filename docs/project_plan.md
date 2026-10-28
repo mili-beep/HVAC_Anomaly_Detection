@@ -416,21 +416,21 @@ The binary model is not accepted as “best” until its advantage over the stro
 
 ### Objective
 
-Evaluate exact fault classification and broader fault-group diagnosis separately from binary detection.
+Evaluate exact fault-type classification separately from binary detection.
 
 ### Tasks
 
 - flat multiclass classification;
-- hierarchical groups such as sensor, fan, valve, pump and thermal faults;
 - confidence estimates and abstention for unsupported classes;
 - per-class and per-building metrics;
 - rare-class sensitivity analysis;
 - confusion-matrix interpretation.
 
-The implemented headline runner uses XGBoost with physical-signal features.
-Normal-versus-fault detection remains a separate task. Fault classes missing
-from a training fold are recorded as unsupported and excluded from ordinary
-classification metrics rather than being reported as misleading poor scores.
+The implemented headline runner uses XGBoost with physical-signal features and
+the dataset's original fault labels. Normal-versus-fault detection remains a
+separate task. Fault classes missing from a training fold are recorded as
+unsupported and excluded from ordinary classification metrics rather than being
+reported as misleading poor scores.
 
 ### Rules
 
@@ -471,7 +471,6 @@ Translate model probabilities into safe staff-facing outputs.
 ### Outputs
 
 - anomaly status;
-- predicted fault group;
 - predicted fault type;
 - calibrated confidence;
 - uncertain/abstain state;

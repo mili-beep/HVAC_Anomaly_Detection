@@ -29,7 +29,6 @@ from ahu_fdd.detection import (
 )
 
 DESIGN_NAMES = ("ahu_held_out", "chronological", "building_held_out", "nested_grouped")
-TASK_NAMES = ("flat_type", "hierarchical_group", "hierarchical_type")
 
 
 def load_diagnosis_config(path: Path) -> dict[str, Any]:
@@ -41,16 +40,6 @@ def load_diagnosis_config(path: Path) -> dict[str, Any]:
     threshold = float(config.get("confidence_threshold", 0))
     if not 0 < threshold < 1:
         raise ValueError("confidence_threshold must be between zero and one")
-    groups = config.get("fault_groups")
-    if not isinstance(groups, dict) or not groups:
-        raise ValueError("The diagnosis configuration must define fault_groups")
-    labels: list[str] = []
-    for group, members in groups.items():
-        if not isinstance(members, list) or not members:
-            raise ValueError(f"Fault group {group!r} must contain labels")
-        labels.extend(str(member) for member in members)
-    if len(labels) != len(set(labels)):
-        raise ValueError("A fault label cannot occur in more than one group")
     variants = config.get("feature_variants", ["physical_signal"])
     if not isinstance(variants, list) or not variants:
         raise ValueError("feature_variants must be a non-empty list")
@@ -58,7 +47,6 @@ def load_diagnosis_config(path: Path) -> dict[str, Any]:
     if not isinstance(model, dict):
         raise ValueError("The diagnosis configuration must define model settings")
     config["confidence_threshold"] = threshold
-    config["fault_groups"] = {str(key): [str(value) for value in values] for key, values in groups.items()}
     config["feature_variants"] = [str(value) for value in variants]
     return config
 
@@ -85,7 +73,7 @@ def _fit_multiclass(
     test_matrix: np.ndarray,
     config: dict[str, Any],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Fit a weighted XGBoost classifier and return labels, confidence, probabilities."""
+    """Fit a weighted XGBoost classifier and return classes, labels and confidence."""
     classes = np.asarray(sorted(train_labels.astype(str).unique()), dtype=object)
     if not len(classes):
         return classes, np.empty(len(test_matrix), dtype=object), np.empty((len(test_matrix), 0))
@@ -264,16 +252,7 @@ def run_diagnosis(
     normal_label = str(config["normal_label"]).strip()
     if labels.isna().any():
         raise ValueError("Diagnosis input contains missing labels")
-    label_to_group = {
-        label: group
-        for group, members in config["fault_groups"].items()
-        for label in members
-    }
     fault_mask = ~labels.eq(normal_label)
-    unmapped = sorted(set(labels[fault_mask].astype(str)) - set(label_to_group))
-    if unmapped:
-        raise ValueError(f"Fault labels are not mapped to a diagnosis group: {unmapped}")
-    groups = labels.map(label_to_group).astype("string")
 
     summary: list[dict[str, Any]] = []
     class_rows: list[dict[str, Any]] = []
@@ -297,7 +276,6 @@ def run_diagnosis(
             test_matrix = transformer.transform(test_fault)
             train_types = labels.iloc[train_fault_ids]
             test_types = labels.iloc[test_fault_ids]
-            test_groups = groups.iloc[test_fault_ids]
             test_buildings = data.iloc[test_fault_ids]["building"].astype("string").reset_index(drop=True)
 
             type_classes, flat_pred, flat_conf = _fit_multiclass(
@@ -311,7 +289,7 @@ def run_diagnosis(
                 design=design,
                 fold=fold,
                 variant=variant,
-                task="flat_type",
+                task="fault_type",
                 true_labels=test_types.reset_index(drop=True),
                 predicted=flat_pred,
                 confidence=flat_conf,
@@ -331,93 +309,11 @@ def run_diagnosis(
                         "design": design,
                         "fold": fold,
                         "variant": variant,
-                        "task": "flat_type",
-                        "true_group": str(test_groups.iloc[index]),
-                        "true_type": str(test_types.iloc[index]),
-                        "predicted_group": label_to_group.get(str(flat_pred[index]), "Uncertain"),
+                        "task": "fault_type",
                         "predicted_type": str(flat_pred[index]),
-                        "group_confidence": np.nan,
-                        "type_confidence": float(flat_conf[index]),
-                        "group_abstained": False,
-                        "type_abstained": bool(flat_conf[index] < threshold),
-                    }
-                )
-
-            group_train = groups.iloc[train_fault_ids]
-            group_classes, group_pred, group_conf = _fit_multiclass(
-                train_matrix, group_train, test_matrix, config
-            )
-            _record_metrics(
-                summary,
-                class_rows,
-                building_rows,
-                confusion_rows,
-                design=design,
-                fold=fold,
-                variant=variant,
-                task="hierarchical_group",
-                true_labels=test_groups.reset_index(drop=True),
-                predicted=group_pred,
-                confidence=group_conf,
-                classes=group_classes,
-                all_test_rows=len(test_fault_ids),
-                unsupported_rows=int((~test_groups.astype(str).isin(group_classes)).sum()),
-                threshold=threshold,
-                buildings=test_buildings,
-            )
-
-            type_pred = np.full(len(test_fault_ids), "Uncertain", dtype=object)
-            type_conf = np.zeros(len(test_fault_ids), dtype=float)
-            for group in group_classes:
-                train_group_mask = group_train.astype(str).eq(str(group)).to_numpy()
-                test_group_mask = np.asarray(group_pred, dtype=object) == group
-                _, predicted_types, confidence = _fit_multiclass(
-                    train_matrix[train_group_mask],
-                    train_types.iloc[train_group_mask],
-                    test_matrix[test_group_mask],
-                    config,
-                )
-                type_pred[test_group_mask] = predicted_types
-                type_conf[test_group_mask] = group_conf[test_group_mask] * confidence
-            _record_metrics(
-                summary,
-                class_rows,
-                building_rows,
-                confusion_rows,
-                design=design,
-                fold=fold,
-                variant=variant,
-                task="hierarchical_type",
-                true_labels=test_types.reset_index(drop=True),
-                predicted=type_pred,
-                confidence=type_conf,
-                classes=type_classes,
-                all_test_rows=len(test_fault_ids),
-                unsupported_rows=int((~test_types.astype(str).isin(type_classes)).sum()),
-                threshold=threshold,
-                buildings=test_buildings,
-            )
-            for index, row_id in enumerate(test_fault_ids):
-                group_is_confident = group_conf[index] >= threshold
-                type_is_confident = group_is_confident and type_conf[index] >= threshold
-                prediction_rows.append(
-                    {
-                        "row_id": int(row_id),
-                        "building": str(data.iloc[row_id]["building"]),
-                        "ahu": str(data.iloc[row_id]["ahu"]),
-                        "timestamp": str(data.iloc[row_id]["timestamp"]),
-                        "design": design,
-                        "fold": fold,
-                        "variant": variant,
-                        "task": "hierarchical",
-                        "true_group": str(test_groups.iloc[index]),
                         "true_type": str(test_types.iloc[index]),
-                        "predicted_group": str(group_pred[index]),
-                        "predicted_type": str(type_pred[index]),
-                        "group_confidence": float(group_conf[index]),
-                        "type_confidence": float(type_conf[index]),
-                        "group_abstained": not group_is_confident,
-                        "type_abstained": not type_is_confident,
+                        "type_confidence": float(flat_conf[index]),
+                        "type_abstained": bool(flat_conf[index] < threshold),
                     }
                 )
 
@@ -445,7 +341,6 @@ def run_diagnosis(
             "row_count": int(len(data)),
             "fault_row_count": int(fault_mask.sum()),
             "normal_label": normal_label,
-            "fault_groups": config["fault_groups"],
             "confidence_threshold": threshold,
             "designs": designs,
             "feature_variants": config["feature_variants"],
@@ -469,7 +364,7 @@ def run_diagnosis(
     lines = [
         "# Diagnosis experiment summary",
         "",
-        "Diagnosis is evaluated on fault-labelled rows only; normal-versus-fault detection is a separate task.",
+        "Exact fault-type diagnosis is evaluated on fault-labelled rows only; normal-versus-fault detection is a separate task.",
         "Confidence is the maximum XGBoost class score, with abstention below the configured threshold.",
         "",
         "| Design | Variant | Task | Folds | Evaluated rows | Unsupported rows | Macro F1 | Coverage | Confident accuracy |",

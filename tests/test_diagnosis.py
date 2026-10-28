@@ -76,11 +76,10 @@ def test_diagnosis_runner_writes_auditable_outputs(tmp_path: Path) -> None:
         requested_designs="chronological",
     )
     summary = pd.read_csv(output_dir / "diagnosis_metrics_summary.csv")
-    assert set(summary["task"]) == {
-        "flat_type",
-        "hierarchical_group",
-        "hierarchical_type",
-    }
+    assert set(summary["task"]) == {"fault_type"}
+    predictions = pd.read_csv(output_dir / "diagnosis_predictions.csv")
+    assert set(predictions["task"]) == {"fault_type"}
+    assert "predicted_group" not in predictions
     assert (output_dir / "diagnosis_predictions.csv").is_file()
     assert (output_dir / "diagnosis_manifest.json").is_file()
     assert result["markdown"].endswith("diagnosis_summary.md")

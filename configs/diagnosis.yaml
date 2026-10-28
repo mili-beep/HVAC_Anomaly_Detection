@@ -3,19 +3,8 @@ normal_label: Normal condition
 confidence_threshold: 0.70
 
 # Diagnosis is evaluated on fault-labelled rows only. Binary detection remains
-# a separate task that decides whether a row is normal or faulty.
-fault_groups:
-  pump:
-    - Heating pump fault
-    - Cooling pump fault
-  fan:
-    - Supply fan fault
-  valve:
-    - Valve position fault
-  thermal:
-    - Return air temperature fault
-    - Supply air temperature fault
-    - Cooling supply temperature fault
+# a separate task that decides whether a row is normal or faulty. The original
+# dataset fault labels are used directly; no derived group labels are added.
 
 model:
   n_estimators: 200

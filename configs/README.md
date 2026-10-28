@@ -21,6 +21,5 @@ because these are diagnostic benchmarks, not the final supervised model.
 the normal operating-range rule, Isolation Forest, XGBoost and optional LSTM
 tracks.
 
-`diagnosis.yaml` freezes the fault-group mapping, XGBoost diagnosis settings,
-and confidence threshold used by the Phase 9 flat and hierarchical diagnosis
-comparisons.
+`diagnosis.yaml` freezes the XGBoost diagnosis settings and confidence
+threshold used by the Phase 9 exact fault-type comparison.

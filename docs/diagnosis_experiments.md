@@ -6,9 +6,7 @@ the detection experiment and are not treated as a diagnosis class.
 
 The runner evaluates:
 
-- flat fault-type XGBoost classification;
-- hierarchical fault-group classification followed by within-group fault-type
-  classification;
+- exact fault-type XGBoost classification using the dataset's original labels;
 - per-class and per-building metrics;
 - confusion matrices;
 - unsupported test classes, reported separately rather than counted as ordinary
@@ -18,7 +16,9 @@ The runner evaluates:
 The default headline feature variant is `physical_signal`. The confidence value
 is the maximum XGBoost class score, not a calibrated probability. The report
 must therefore describe it as model confidence unless a later calibration study
-is completed.
+is completed. The project does not derive or evaluate broader fault groups:
+the dataset contains seven original fault labels, and exact-type performance is
+the more direct and transparent diagnosis result.
 
 Run it after canonical ingestion and frozen split creation:
 

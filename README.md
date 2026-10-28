@@ -202,8 +202,8 @@ substituting another model. See [docs/detection_experiments.md](docs/detection_e
 ## Run diagnosis experiments
 
 Diagnosis is evaluated separately from binary detection. The default Phase 9
-run uses physical-signal features and compares flat fault-type classification
-with hierarchical fault-group and within-group fault-type classification:
+run uses physical-signal features to classify the original fault-type labels
+directly:
 
 ```bash
 run_diagnosis_experiments \
