@@ -220,6 +220,14 @@ from a training fold is reported as unsupported rather than being silently
 treated as a normal classification error. See
 [docs/diagnosis_experiments.md](docs/diagnosis_experiments.md).
 
+## Showcase diagnosis results
+
+After the diagnosis run has completed, open
+`notebooks/03_diagnosis_results.ipynb`. It reads the saved Phase 9 outputs and
+creates report-ready tables and Matplotlib figures for split-level performance,
+fault-type metrics, unsupported classes, confidence coverage, and a grouped-AHU
+confusion matrix. It does not retrain the model.
+
 ## Repository status
 
 Phase 0, the Phase 1 raw-data audit, the Phase 2 auditorium preparation policy,
