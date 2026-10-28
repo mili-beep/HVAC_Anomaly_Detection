@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "predictions_file": "/Users/mili/Desktop/IRPN/results/diagnosis/diagnosis_predictions.csv",
+  "policy_file": "/Users/mili/Desktop/IRPN/configs/operational_priority.yaml",
+  "design": "chronological",
+  "input_rows": 20948,
+  "event_count": 1063,
+  "duration_definition": "labelled event duration: end-start plus the configured sampling interval",
+  "limitation": "The dataset labels complete sessions; duration does not establish physical fault onset or physical duration.",
+  "output_files": {
+    "events": "results/operational/priority_events.csv",
+    "summary": "results/operational/priority_summary.csv"
+  }
+}

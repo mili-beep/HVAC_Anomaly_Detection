@@ -1,0 +1,4 @@
+priority_band,events
+Low,0
+Medium,64
+High,999

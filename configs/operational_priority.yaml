@@ -1,0 +1,55 @@
+schema_version: 1
+
+# These are policy values, not learned model parameters. They should be reviewed
+# with Smart Facilities SA before operational use.
+confidence_threshold: 0.70
+sampling_interval_minutes: 60
+max_gap_minutes: 60
+
+weights:
+  severity: 0.45
+  duration: 0.30
+  criticality: 0.25
+
+severity:
+  default: 3
+  fault_types:
+    Supply fan fault: 5
+    Heating pump fault: 5
+    Cooling pump fault: 5
+    Valve position fault: 4
+    Supply air temperature fault: 3
+    Return air temperature fault: 3
+
+duration:
+  # The first matching upper bound is used. The final bin is unbounded.
+  bins:
+    - max_minutes: 15
+      score: 1
+    - max_minutes: 60
+      score: 2
+    - max_minutes: 240
+      score: 3
+    - max_minutes: 720
+      score: 4
+    - max_minutes: null
+      score: 5
+
+criticality:
+  # Illustrative defaults pending a client asset register.
+  default: 3
+  by_building:
+    auditorium: 3
+    office: 4
+    hospital: 5
+
+priority_bands:
+  - maximum: 39
+    name: Low
+    action: Monitor and review during routine maintenance.
+  - maximum: 69
+    name: Medium
+    action: Inspect during the next planned maintenance window.
+  - maximum: 100
+    name: High
+    action: Investigate promptly and confirm the equipment condition.
