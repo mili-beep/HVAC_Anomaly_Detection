@@ -101,3 +101,22 @@ def test_diagnosis_runner_writes_auditable_outputs(tmp_path: Path) -> None:
     assert manifest["eligible_fault_row_count"] == manifest["fault_row_count"] - 1
     assert manifest["feature_counts"]["physical_signal"] == 88
     assert result["markdown"].endswith("diagnosis_summary.md")
+
+    sensitivity_dir = tmp_path / "diagnosis_symptom_only"
+    run_diagnosis(
+        data_file,
+        feature_dir / "multibuilding_features.csv",
+        feature_dir / "feature_manifest.json",
+        splits_dir / "evaluation_splits.csv",
+        sensitivity_dir,
+        Path("configs/diagnosis_symptom_only.yaml"),
+        Path("configs/multibuilding_ahu.yaml"),
+        requested_designs="chronological",
+        duplicate_policy="exclude_ambiguous_keys",
+        variant_config_file=Path("configs/feature_variants.yaml"),
+    )
+    sensitivity_manifest = json.loads(
+        (sensitivity_dir / "diagnosis_manifest.json").read_text()
+    )
+    assert sensitivity_manifest["feature_variants"] == ["symptom_only"]
+    assert sensitivity_manifest["feature_counts"]["symptom_only"] == 35

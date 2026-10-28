@@ -313,6 +313,11 @@ minimum support are excluded from diagnosis only and recorded in the manifest.
 See
 [docs/diagnosis_experiments.md](docs/diagnosis_experiments.md).
 
+Notebook 4 also reports one symptom-only diagnosis sensitivity run. It uses the
+same rows and folds but excludes direct pump, fan, valve and exchanger channels.
+The practical BMS-signal run remains the headline; the sensitivity run tests
+whether exact diagnosis depends on direct equipment-state information.
+
 ## Showcase operational evidence
 
 Open `notebooks/05_operational_outputs.ipynb` after the detection runs. It

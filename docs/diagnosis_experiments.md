@@ -56,3 +56,26 @@ confusion matrices, row-level predictions with confidence and abstention flags,
 a manifest and a Markdown summary. If a fault class is absent from a training
 fold, its test rows are counted as `unsupported_rows` and are not disguised as
 ordinary poor classification performance.
+
+## Diagnosis feature sensitivity
+
+Notebook 4 also includes one deliberately narrow sensitivity run. It repeats
+the same diagnosis protocol with the direct fan, valve, exchanger and pump
+signals removed:
+
+```bash
+run_diagnosis_experiments \
+  --data-file data/interim/cleaned/cleaned_ahu.csv \
+  --feature-file data/interim/features/multibuilding_features.csv \
+  --feature-manifest data/interim/features/feature_manifest.json \
+  --splits-file data/interim/quality_splits/exclude_ambiguous_keys/evaluation_splits.csv \
+  --output-dir results/diagnosis_symptom_only \
+  --config configs/diagnosis_symptom_only.yaml \
+  --building-config configs/multibuilding_ahu.yaml \
+  --duplicate-policy exclude_ambiguous_keys \
+  --variant-config configs/feature_variants.yaml
+```
+
+This is a robustness check, not a replacement headline model. A large drop in
+pump-fault performance indicates that direct pump/status channels explain much
+of the practical model's diagnosis result.

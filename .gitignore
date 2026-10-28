@@ -17,6 +17,7 @@ results/baselines/*
 results/detection/*
 results/detection_lstm/*
 results/diagnosis/*
+results/diagnosis_symptom_only/*
 results/figures/*
 results/matched_pooled_vs_individual/matched_building_test_predictions.csv
 

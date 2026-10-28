@@ -23,6 +23,7 @@ from xgboost import XGBClassifier
 
 from ahu_fdd.baselines import _validate_assignments
 from ahu_fdd.detection import FoldTransformer
+from ahu_fdd.feature_sensitivity import load_variant_config, resolve_feature_variants
 from ahu_fdd.splits import (
     DISABLED_MODELING_DESIGN_NAMES,
     MODELING_DESIGN_NAMES,
@@ -35,6 +36,7 @@ def _load_features(
     data_file: Path,
     feature_file: Path,
     feature_manifest_file: Path,
+    variant_config_file: Path | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, list[str]], dict[str, Any]]:
     """Load the cleaned rows and the saved Phase 5 feature table together.
 
@@ -44,10 +46,15 @@ def _load_features(
     data = pd.read_csv(data_file, low_memory=False).reset_index(drop=True)
     features = pd.read_csv(feature_file, low_memory=False).reset_index(drop=True)
     manifest = json.loads(feature_manifest_file.read_text(encoding="utf-8"))
-    variants = {
-        str(name): [str(column) for column in columns]
-        for name, columns in manifest.get("feature_variants", {}).items()
-    }
+    if variant_config_file is None:
+        variants = {
+            str(name): [str(column) for column in columns]
+            for name, columns in manifest.get("feature_variants", {}).items()
+        }
+    else:
+        variants = resolve_feature_variants(
+            manifest, load_variant_config(variant_config_file)
+        )
     if not variants:
         raise ValueError("The feature manifest does not define any feature variants")
     key_columns = ["building", "ahu", "timestamp", "source_row_id", "label"]
@@ -285,11 +292,12 @@ def run_diagnosis(
     building_config_path: Path,
     requested_designs: str | None = None,
     duplicate_policy: str = "unspecified",
+    variant_config_file: Path | None = None,
 ) -> dict[str, Any]:
     config = load_diagnosis_config(config_path)
     designs = _requested_designs(requested_designs)
     data, features, variants, feature_manifest = _load_features(
-        data_file, feature_file, feature_manifest_file
+        data_file, feature_file, feature_manifest_file, variant_config_file
     )
     assignments = pd.read_csv(splits_file, low_memory=False)
     _validate_assignments(assignments, len(data))
@@ -416,6 +424,11 @@ def run_diagnosis(
                 variant: len(variants[variant]) for variant in config["feature_variants"]
             },
             "feature_manifest_schema_version": feature_manifest.get("schema_version"),
+            "variant_config_file": (
+                str(variant_config_file.expanduser().resolve())
+                if variant_config_file is not None
+                else None
+            ),
             "output_files": {
                 "summary": str(summary_path),
                 "by_class": str(class_path),
@@ -478,6 +491,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         default="unspecified",
         help="Declared duplicate-row policy used to produce the input table",
     )
+    parser.add_argument(
+        "--variant-config",
+        type=Path,
+        help="Optional frozen feature-variant policy for a sensitivity run",
+    )
     args = parser.parse_args(argv)
     result = run_diagnosis(
         args.data_file,
@@ -489,6 +507,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         args.building_config,
         args.designs,
         args.duplicate_policy,
+        args.variant_config,
     )
     print(f"Wrote diagnosis outputs to {args.output_dir.resolve()}")
     print(result["summary"])
