@@ -492,18 +492,34 @@ def notebook_04_diagnosis() -> None:
         code(
             """
 RESULTS = ROOT / 'results' / 'diagnosis'
-require(RESULTS / 'diagnosis_manifest.json', RESULTS / 'diagnosis_metrics_summary.csv', RESULTS / 'diagnosis_metrics_by_class.csv', RESULTS / 'diagnosis_confusion_matrix.csv')
+DATA = ROOT / 'data' / 'interim' / 'cleaned' / 'cleaned_ahu.csv'
+require(RESULTS / 'diagnosis_manifest.json', RESULTS / 'diagnosis_metrics_summary.csv', RESULTS / 'diagnosis_metrics_by_class.csv', RESULTS / 'diagnosis_confusion_matrix.csv', DATA)
 manifest = read_json(RESULTS / 'diagnosis_manifest.json')
-summary = pd.read_csv(RESULTS / 'diagnosis_metrics_summary.csv')
-by_class = pd.read_csv(RESULTS / 'diagnosis_metrics_by_class.csv')
+summary = pd.read_csv(RESULTS / 'diagnosis_metrics_summary.csv').drop(columns=['variant'], errors='ignore')
+by_class = pd.read_csv(RESULTS / 'diagnosis_metrics_by_class.csv').drop(columns=['variant'], errors='ignore')
 confusion = pd.read_csv(RESULTS / 'diagnosis_confusion_matrix.csv')
-print('Feature variants:', manifest.get('feature_variants'))
+print('Feature set: the project default modelling features')
 print('Minimum fault rows:', manifest.get('minimum_fault_rows'))
 print('Confidence threshold:', manifest.get('confidence_threshold'))
 display(summary.round(3))
 """
         ),
-        markdown("## 2. Overall diagnosis performance"),
+        markdown(
+            """
+            ## 2. Why the diagnosis result is pooled
+
+            Fault-type diagnosis is reported as a pooled experiment because several fault labels are absent or very rare within individual buildings. Training a separate classifier for a building that has almost no examples of a fault would produce an unsupported or misleading result. The table below shows the available class support before any model is fitted.
+            """
+        ),
+        code(
+            """
+data = pd.read_csv(DATA, usecols=['building', 'label'], low_memory=False)
+fault_support = data[~data['label'].astype('string').str.contains('Normal', case=False, na=False)]
+fault_support = fault_support.groupby(['building', 'label']).size().rename('rows').reset_index()
+display(fault_support.pivot(index='label', columns='building', values='rows').fillna(0).astype(int))
+"""
+        ),
+        markdown("## 3. Overall diagnosis performance"),
         code(
             """
 overall = summary.groupby(['design', 'task'], as_index=False).agg(
@@ -530,7 +546,7 @@ plt.show()
             Macro F1 gives each retained fault type equal importance. Weighted F1 reflects the row distribution and can be higher when common fault types are easier. `unsupported_rows` are reported separately when a class appears in evaluation but was absent from the training fold; they are not silently treated as ordinary model errors.
             """
         ),
-        markdown("## 3. Fault-type performance"),
+        markdown("## 4. Fault-type performance"),
         code(
             """
 fault_classes = by_class[by_class['task'].eq('fault_type')].copy()
@@ -550,7 +566,7 @@ ax.set_title('Fault-type diagnosis by class')
 plt.show()
 """
         ),
-        markdown("## 4. Confusion matrix",),
+        markdown("## 5. Confusion matrix",),
         code(
             """
 matrix = confusion[confusion['task'].eq('fault_type')].pivot_table(index='true_label', columns='predicted_label', values='count', aggfunc='sum', fill_value=0)
@@ -572,7 +588,7 @@ plt.show()
             **Confidence caution.** The saved confidence is a model score used for the configured abstention rule; it is not automatically a calibrated probability. A diagnosis shown at the threshold should remain an inspection aid, not an automatic maintenance decision.
             """
         ),
-        markdown("## 5. Diagnosis limitations and next evidence"),
+        markdown("## 6. Diagnosis limitations and next evidence"),
         code(
             """
 limitations = pd.DataFrame([
